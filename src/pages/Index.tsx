@@ -33,8 +33,9 @@ const Index = () => {
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-gray-50 to-gray-100">
       <Header />
-      <main className="flex-grow py-6 px-4">
-        <div className="container mx-auto animate-fade-in">
+      <main className="flex-grow py-8 px-4 relative">
+        <div className="absolute inset-0 bg-grid-pattern opacity-5 pointer-events-none"></div>
+        <div className="container mx-auto animate-fade-in relative z-10">
           {renderSection()}
         </div>
       </main>
