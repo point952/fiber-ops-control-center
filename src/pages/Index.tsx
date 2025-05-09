@@ -1,12 +1,42 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+
+import React, { useState } from 'react';
+import Header from '@/components/Header';
+import Footer from '@/components/Footer';
+import MainMenu from '@/components/MainMenu';
+import InstallationForm from '@/components/Installation/InstallationForm';
+import CTOAnalysisForm from '@/components/CTO/CTOAnalysisForm';
+import RMAForm from '@/components/RMA/RMAForm';
+
+type ActiveSection = 'menu' | 'installation' | 'cto' | 'rma';
 
 const Index = () => {
+  const [activeSection, setActiveSection] = useState<ActiveSection>('menu');
+
+  const renderSection = () => {
+    switch (activeSection) {
+      case 'installation':
+        return <InstallationForm onBack={() => setActiveSection('menu')} />;
+      case 'cto':
+        return <CTOAnalysisForm onBack={() => setActiveSection('menu')} />;
+      case 'rma':
+        return <RMAForm onBack={() => setActiveSection('menu')} />;
+      default:
+        return (
+          <MainMenu 
+            onSelect={(option) => setActiveSection(option)} 
+            className="animate-fade-in"
+          />
+        );
+    }
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-gray-600">Start building your amazing project here!</p>
-      </div>
+    <div className="min-h-screen flex flex-col bg-gray-50">
+      <Header />
+      <main className="flex-grow">
+        {renderSection()}
+      </main>
+      <Footer />
     </div>
   );
 };
