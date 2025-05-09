@@ -33,6 +33,7 @@ const CTOAnalysisForm: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   });
   
   const [showTable, setShowTable] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<keyof FormData | 'portaEspecifica', string>>>({});
 
   const handleChange = <K extends keyof FormData>(name: K, value: FormData[K]) => {
@@ -63,17 +64,55 @@ const CTOAnalysisForm: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     }
   };
 
+  const getAddressFromCoordinates = async (latitude: number, longitude: number) => {
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`
+      );
+      
+      if (!response.ok) throw new Error('Falha ao obter endereço');
+      
+      const data = await response.json();
+      
+      // Extrair informações de endereço do resultado
+      const address = data.address || {};
+      
+      // Tentar encontrar o bairro (neighbourhood, suburb ou district)
+      const bairro = address.neighbourhood || address.suburb || address.district || '';
+      
+      // Tentar encontrar a rua (road, street ou path)
+      const rua = address.road || address.street || address.path || '';
+      
+      return { bairro, rua };
+    } catch (error) {
+      console.error('Erro ao obter endereço:', error);
+      return { bairro: '', rua: '' };
+    }
+  };
+
   const getLocation = () => {
     if (navigator.geolocation) {
+      setIsLoading(true);
       navigator.geolocation.getCurrentPosition(
-        (position) => {
+        async (position) => {
           const { latitude, longitude } = position.coords;
           const coordString = `${latitude}, ${longitude}`;
           handleChange('coordenadas', coordString);
+          
+          // Obter endereço a partir das coordenadas
+          const { bairro, rua } = await getAddressFromCoordinates(latitude, longitude);
+          
+          // Atualizar campos de bairro e rua se forem encontrados
+          if (bairro) handleChange('bairro', bairro);
+          if (rua) handleChange('rua', rua);
+          
+          setIsLoading(false);
           toast.success("Localização obtida com sucesso!");
         },
-        () => {
+        (error) => {
+          setIsLoading(false);
           toast.error("Não foi possível obter sua localização");
+          console.error('Erro de geolocalização:', error);
         }
       );
     } else {
@@ -186,9 +225,10 @@ const CTOAnalysisForm: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                       variant="outline"
                       onClick={getLocation}
                       className="flex-shrink-0"
+                      disabled={isLoading}
                     >
                       <MapPin className="h-4 w-4 mr-2" />
-                      Obter Localização
+                      {isLoading ? 'Obtendo...' : 'Obter Localização'}
                     </Button>
                   </div>
                 </div>
