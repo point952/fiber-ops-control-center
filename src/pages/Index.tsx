@@ -31,10 +31,12 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-gray-50 to-gray-100">
       <Header />
-      <main className="flex-grow">
-        {renderSection()}
+      <main className="flex-grow py-6 px-4">
+        <div className="container mx-auto animate-fade-in">
+          {renderSection()}
+        </div>
       </main>
       <Footer />
     </div>

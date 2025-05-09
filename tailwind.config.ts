@@ -118,13 +118,18 @@ export default {
 						opacity: '0',
 						transform: 'translateY(10px)'
 					}
+				},
+				'spin-slow': {
+					'0%': { transform: 'rotate(0deg)' },
+					'100%': { transform: 'rotate(360deg)' }
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
 				'accordion-up': 'accordion-up 0.2s ease-out',
 				'fade-in': 'fade-in 0.3s ease-out',
-				'fade-out': 'fade-out 0.3s ease-out'
+				'fade-out': 'fade-out 0.3s ease-out',
+				'spin-slow': 'spin-slow 15s linear infinite'
 			}
 		}
 	},
