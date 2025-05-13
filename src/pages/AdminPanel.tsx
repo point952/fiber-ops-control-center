@@ -1,8 +1,8 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -19,15 +19,16 @@ interface User {
 }
 
 const AdminPanel = () => {
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, getAllUsers, addUser, updateUser, deleteUser } = useAuth();
   const navigate = useNavigate();
   
-  // Mock users data - in a real app, this would come from an API
-  const [users, setUsers] = useState<User[]>([
-    { id: '1', username: 'admin', name: 'Administrador', role: 'admin' },
-    { id: '2', username: 'operator', name: 'Operador Padrão', role: 'operator' },
-    { id: '3', username: 'tech', name: 'Técnico Padrão', role: 'technician' },
-  ]);
+  // Get users from AuthContext
+  const [users, setUsers] = useState<User[]>([]);
+  
+  // Load users on component mount
+  useEffect(() => {
+    setUsers(getAllUsers());
+  }, [getAllUsers]);
   
   const [showAddUser, setShowAddUser] = useState(false);
   const [newUser, setNewUser] = useState<Omit<User, 'id'> & { password: string }>({
@@ -45,24 +46,20 @@ const AdminPanel = () => {
       return;
     }
     
-    const userExists = users.some(user => user.username === newUser.username);
-    if (userExists) {
-      toast.error("Nome de usuário já existe");
-      return;
+    try {
+      // Use AuthContext addUser function
+      addUser(newUser);
+      
+      // Refresh users list
+      setUsers(getAllUsers());
+      
+      // Reset form
+      setNewUser({ username: '', name: '', role: 'technician', password: '' });
+      setShowAddUser(false);
+      toast.success("Usuário adicionado com sucesso");
+    } catch (error) {
+      toast.error("Erro ao adicionar usuário: " + (error as Error).message);
     }
-    
-    const newUserId = String(users.length + 1);
-    const userToAdd = {
-      id: newUserId,
-      username: newUser.username,
-      name: newUser.name,
-      role: newUser.role,
-    };
-    
-    setUsers(prev => [...prev, userToAdd]);
-    setNewUser({ username: '', name: '', role: 'technician', password: '' });
-    setShowAddUser(false);
-    toast.success("Usuário adicionado com sucesso");
   };
 
   const handleDeleteUser = (id: string) => {
@@ -71,8 +68,16 @@ const AdminPanel = () => {
       return;
     }
     
-    setUsers(prev => prev.filter(user => user.id !== id));
-    toast.success("Usuário excluído com sucesso");
+    // Use AuthContext deleteUser function
+    const success = deleteUser(id);
+    
+    if (success) {
+      // Refresh users list
+      setUsers(getAllUsers());
+      toast.success("Usuário excluído com sucesso");
+    } else {
+      toast.error("Não foi possível excluir o usuário");
+    }
   };
 
   const startEditUser = (user: User) => {
@@ -86,13 +91,17 @@ const AdminPanel = () => {
   const handleSaveEdit = () => {
     if (!editingUser) return;
     
-    setUsers(prev => 
-      prev.map(user => 
-        user.id === editingUser.id ? editingUser : user
-      )
-    );
-    setEditingUser(null);
-    toast.success("Usuário atualizado com sucesso");
+    // Use AuthContext updateUser function
+    const success = updateUser(editingUser);
+    
+    if (success) {
+      // Refresh users list
+      setUsers(getAllUsers());
+      setEditingUser(null);
+      toast.success("Usuário atualizado com sucesso");
+    } else {
+      toast.error("Não foi possível atualizar o usuário");
+    }
   };
 
   return (

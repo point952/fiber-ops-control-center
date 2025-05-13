@@ -16,12 +16,16 @@ interface AuthContextType {
   logout: () => void;
   isAuthenticated: boolean;
   isLoading: boolean;
+  getAllUsers: () => User[];
+  addUser: (newUser: Omit<User, 'id'> & { password: string }) => string;
+  updateUser: (user: User) => boolean;
+  deleteUser: (id: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Mock user database - in a real application, this would be stored in a secure backend
-const USERS = [
+const DEFAULT_USERS = [
   {
     id: '1',
     username: 'admin',
@@ -48,9 +52,20 @@ const USERS = [
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [usersDb, setUsersDb] = useState<Array<User & { password: string }>>([]);
 
-  // Check for saved user on initial load
+  // Initialize users on first load
   useEffect(() => {
+    // Try to load users from localStorage, otherwise use default
+    const storedUsers = localStorage.getItem('users');
+    if (storedUsers) {
+      setUsersDb(JSON.parse(storedUsers));
+    } else {
+      setUsersDb(DEFAULT_USERS);
+      localStorage.setItem('users', JSON.stringify(DEFAULT_USERS));
+    }
+
+    // Load current logged in user if available
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
       setUser(JSON.parse(storedUser));
@@ -62,7 +77,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Simulate API call delay
     await new Promise(resolve => setTimeout(resolve, 500));
     
-    const foundUser = USERS.find(u => u.username === username && u.password === password);
+    const foundUser = usersDb.find(u => u.username === username && u.password === password);
     
     if (foundUser) {
       const { password, ...userWithoutPassword } = foundUser;
@@ -79,6 +94,74 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('user');
   };
 
+  const getAllUsers = () => {
+    return usersDb.map(({ password, ...user }) => user);
+  };
+
+  const addUser = (newUser: Omit<User, 'id'> & { password: string }) => {
+    // Check if username is unique
+    if (usersDb.some(u => u.username === newUser.username)) {
+      throw new Error('Username already exists');
+    }
+    
+    const newId = String(Date.now());
+    const userWithId = { ...newUser, id: newId };
+    
+    // Update state and localStorage
+    const updatedUsers = [...usersDb, userWithId];
+    setUsersDb(updatedUsers);
+    localStorage.setItem('users', JSON.stringify(updatedUsers));
+    
+    return newId;
+  };
+
+  const updateUser = (updatedUser: User) => {
+    // Find user in database
+    const userIndex = usersDb.findIndex(u => u.id === updatedUser.id);
+    
+    if (userIndex === -1) return false;
+    
+    // Get existing password since we don't modify it here
+    const existingPassword = usersDb[userIndex].password;
+    
+    // Create updated user with password
+    const userWithPassword = { ...updatedUser, password: existingPassword };
+    
+    // Update state and localStorage
+    const updatedUsers = [...usersDb];
+    updatedUsers[userIndex] = userWithPassword;
+    setUsersDb(updatedUsers);
+    localStorage.setItem('users', JSON.stringify(updatedUsers));
+    
+    // If the current user was updated, update that state too
+    if (user && user.id === updatedUser.id) {
+      setUser(updatedUser);
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+    }
+    
+    return true;
+  };
+
+  const deleteUser = (id: string) => {
+    // Don't allow deleting the admin user (id: 1)
+    if (id === '1') return false;
+    
+    // Check if user exists
+    if (!usersDb.some(u => u.id === id)) return false;
+    
+    // Update state and localStorage
+    const updatedUsers = usersDb.filter(u => u.id !== id);
+    setUsersDb(updatedUsers);
+    localStorage.setItem('users', JSON.stringify(updatedUsers));
+    
+    // If the deleted user was the current user, log out
+    if (user && user.id === id) {
+      logout();
+    }
+    
+    return true;
+  };
+
   return (
     <AuthContext.Provider 
       value={{ 
@@ -86,7 +169,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         login, 
         logout, 
         isAuthenticated: !!user,
-        isLoading 
+        isLoading,
+        getAllUsers,
+        addUser,
+        updateUser,
+        deleteUser
       }}
     >
       {children}
