@@ -1,5 +1,4 @@
-
-import React, { useRef, useContext } from 'react';
+import React, { useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -23,19 +22,16 @@ const TableGenerator: React.FC<TableGeneratorProps> = ({ data, title, className,
     if (textRef.current) {
       const text = textRef.current.innerText;
       
-      // Use alternative approach to avoid TypeScript errors
       try {
-        navigator.clipboard.writeText(text).then(
-          function() {
+        navigator.clipboard.writeText(text)
+          .then(() => {
             toast.success("Tabela copiada para a área de transferência");
-          },
-          function(err) {
+          })
+          .catch(err => {
             toast.error("Não foi possível copiar a tabela");
             console.error("Clipboard write error:", err);
-          }
-        );
+          });
       } catch (err) {
-        // Fallback for browsers without clipboard API support
         toast.error("Não foi possível copiar a tabela");
         console.error("Clipboard error:", err);
       }
@@ -43,7 +39,6 @@ const TableGenerator: React.FC<TableGeneratorProps> = ({ data, title, className,
   };
 
   const sendToOperator = () => {
-    // Add the operation to our context
     addOperation({
       type,
       data,
@@ -54,7 +49,6 @@ const TableGenerator: React.FC<TableGeneratorProps> = ({ data, title, className,
     toast.success("Informações enviadas para o operador");
   };
 
-  // Check if this operation already exists
   const operationExists = operations.some(op => 
     op.type === type && 
     op.technician === technician && 
@@ -63,7 +57,6 @@ const TableGenerator: React.FC<TableGeneratorProps> = ({ data, title, className,
     (type === 'cto' && op.data.Bairro === data.Bairro && op.data.Rua === data.Rua))
   );
 
-  // Find a matching operation to check its status
   const matchingOperation = operations.find(op => 
     op.type === type && 
     op.technician === technician && 
@@ -72,11 +65,9 @@ const TableGenerator: React.FC<TableGeneratorProps> = ({ data, title, className,
     (type === 'cto' && op.data.Bairro === data.Bairro && op.data.Rua === data.Rua))
   );
 
-  // Get status from matching operation
   const status = matchingOperation ? matchingOperation.status : null;
   const feedback = matchingOperation ? matchingOperation.feedback : null;
 
-  // Filtrar propriedades com valor undefined, null ou string vazia
   const filteredData = Object.fromEntries(
     Object.entries(data).filter(([_, value]) => 
       value !== undefined && value !== null && value !== ''
