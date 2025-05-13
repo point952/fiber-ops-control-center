@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { toast } from "sonner";
 import { useOperations } from '@/context/OperationContext';
 import { Link } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
 
 interface TableGeneratorProps {
   data: Record<string, any>;
@@ -15,45 +16,63 @@ interface TableGeneratorProps {
   technician?: string;
 }
 
-const TableGenerator: React.FC<TableGeneratorProps> = ({ data, title, className, type, technician = 'Técnico' }) => {
+const TableGenerator: React.FC<TableGeneratorProps> = ({ data, title, className, type, technician }) => {
   const textRef = useRef<HTMLDivElement>(null);
   const { operations, addOperation } = useOperations();
+  const { user } = useAuth();
   
   const copyToClipboard = () => {
     if (textRef.current) {
       const text = textRef.current.innerText;
       
-      // Use document.execCommand as a fallback method
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(text)
+          .then(() => toast.success("Tabela copiada para a área de transferência"))
+          .catch(err => {
+            console.error("Failed to copy: ", err);
+            fallbackCopyToClipboard(text);
+          });
+      } else {
+        fallbackCopyToClipboard(text);
+      }
+    }
+  };
+  
+  const fallbackCopyToClipboard = (text: string) => {
+    // Fallback method using document.execCommand (deprecated but still works as fallback)
+    try {
       const textArea = document.createElement('textarea');
       textArea.value = text;
       document.body.appendChild(textArea);
       textArea.select();
       
-      try {
-        const successful = document.execCommand('copy', false, undefined);
-        if (successful) {
-          toast.success("Tabela copiada para a área de transferência");
-        } else {
-          toast.error("Não foi possível copiar a tabela");
-        }
-      } catch (err) {
+      const successful = document.execCommand('copy');
+      if (successful) {
+        toast.success("Tabela copiada para a área de transferência");
+      } else {
         toast.error("Não foi possível copiar a tabela");
-        console.error("Clipboard error:", err);
       }
       
       document.body.removeChild(textArea);
+    } catch (err) {
+      toast.error("Não foi possível copiar a tabela");
+      console.error("Clipboard error:", err);
     }
   };
 
   const sendToOperator = () => {
-    addOperation(type, data, technician);
+    // Use current user name and ID if not provided
+    const techName = technician || user?.name || 'Técnico';
+    const techId = user?.id || '';
+    
+    addOperation(type, data, techName, techId);
     
     toast.success("Informações enviadas para o operador");
   };
 
   const operationExists = operations.some(op => 
     op.type === type && 
-    op.technician === technician && 
+    (op.technician === (technician || user?.name) || op.technicianId === user?.id) && 
     ((type === 'installation' && op.data.Serial === data.Serial) || 
     (type === 'rma' && op.data.serial === data.serial) || 
     (type === 'cto' && op.data.Bairro === data.Bairro && op.data.Rua === data.Rua))
@@ -61,7 +80,7 @@ const TableGenerator: React.FC<TableGeneratorProps> = ({ data, title, className,
 
   const matchingOperation = operations.find(op => 
     op.type === type && 
-    op.technician === technician && 
+    (op.technician === (technician || user?.name) || op.technicianId === user?.id) && 
     ((type === 'installation' && op.data.Serial === data.Serial) || 
     (type === 'rma' && op.data.serial === data.serial) || 
     (type === 'cto' && op.data.Bairro === data.Bairro && op.data.Rua === data.Rua))
@@ -69,12 +88,19 @@ const TableGenerator: React.FC<TableGeneratorProps> = ({ data, title, className,
 
   const status = matchingOperation ? matchingOperation.status : null;
   const feedback = matchingOperation ? matchingOperation.feedback : null;
+  const assignedOperator = matchingOperation ? matchingOperation.assignedOperator : null;
 
   const filteredData = Object.fromEntries(
     Object.entries(data).filter(([_, value]) => 
       value !== undefined && value !== null && value !== ''
     )
   );
+
+  // Add technician information if available
+  const displayData = {
+    ...filteredData,
+    "Técnico": technician || user?.name || "Técnico",
+  };
 
   const getStatusText = () => {
     if (!status) return null;
@@ -128,7 +154,7 @@ const TableGenerator: React.FC<TableGeneratorProps> = ({ data, title, className,
           ref={textRef} 
           className="bg-gray-50 p-4 border border-gray-200 rounded-md whitespace-pre-wrap font-mono text-sm mb-4 overflow-auto max-h-[600px]"
         >
-          {Object.entries(filteredData).map(([key, value]) => (
+          {Object.entries(displayData).map(([key, value]) => (
             <div key={key} className="flex mb-1">
               <span className="font-semibold w-32">{key}:</span>
               <span className="ml-2">{value?.toString() || ''}</span>
@@ -140,6 +166,13 @@ const TableGenerator: React.FC<TableGeneratorProps> = ({ data, title, className,
         {status && (
           <div className={cn("p-4 rounded-md mb-4 border", getStatusClass())}>
             <div className="font-medium mb-2">Status: {getStatusText()}</div>
+            
+            {assignedOperator && (
+              <div className="mb-2 text-blue-700 font-medium">
+                Operador responsável: {assignedOperator}
+              </div>
+            )}
+            
             {feedback && (
               <div>
                 <div className="font-medium mb-1">Feedback do Operador:</div>
@@ -162,11 +195,13 @@ const TableGenerator: React.FC<TableGeneratorProps> = ({ data, title, className,
             Já enviado para o operador. Verifique o status acima.
           </div>
         )}
-        <Link to="/operador" className="w-full">
-          <Button variant="secondary" className="w-full">
-            Ir para Painel do Operador
-          </Button>
-        </Link>
+        {(user?.role === 'admin' || user?.role === 'operator') && (
+          <Link to="/operador" className="w-full">
+            <Button variant="secondary" className="w-full">
+              Ir para Painel do Operador
+            </Button>
+          </Link>
+        )}
       </CardFooter>
     </Card>
   );

@@ -10,7 +10,7 @@ import CTOAnalysisOperations from '@/components/Operator/CTOAnalysisOperations';
 import RMAOperations from '@/components/Operator/RMAOperations';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Bell, MessageSquare, Database } from 'lucide-react';
+import { Bell, MessageSquare, Database, History, FileText, User } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
   Dialog,
@@ -27,12 +27,18 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 
 type TabType = 'installation' | 'cto' | 'rma';
 
 const OperatorPanel = () => {
   const [activeTab, setActiveTab] = useState<TabType>('installation');
-  const { operations, assignOperatorToOperation } = useOperations();
+  const { operations, assignOperatorToOperation, history } = useOperations();
   const { user } = useAuth();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -41,6 +47,8 @@ const OperatorPanel = () => {
   const [hasNewNotification, setHasNewNotification] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [showDbStats, setShowDbStats] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [showOperationDetails, setShowOperationDetails] = useState<string | null>(null);
 
   // Count pending operations for queue simulation
   const pendingOperations = operations.filter(op => op.status === 'pendente').length;
@@ -72,6 +80,9 @@ const OperatorPanel = () => {
   const assignedToCurrentOperator = operations.filter(
     op => op.assignedOperator === user?.name || op.assignedOperator === user?.username
   ).length;
+  
+  // Get selected operation for details
+  const selectedOperation = operations.find(op => op.id === showOperationDetails);
   
   useEffect(() => {
     // Simulate queue position - in a real app this would come from the server
@@ -150,6 +161,12 @@ const OperatorPanel = () => {
     }
   };
 
+  // Only admins should see the history tab
+  const showHistoryTab = user?.role === 'admin';
+  
+  // Only show appropriate controls based on user role
+  const showControls = user?.role === 'operator' || user?.role === 'admin';
+
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-gray-50 to-gray-100">
       <OperatorHeader />
@@ -163,7 +180,7 @@ const OperatorPanel = () => {
           </div>
           
           <div className="flex items-center gap-3">
-            {queuePosition !== null && (
+            {queuePosition !== null && showControls && (
               <div className="bg-blue-100 text-blue-800 px-3 py-1.5 rounded-md text-sm flex items-center">
                 <span className="font-medium">Posição na fila:</span>
                 <Badge variant="secondary" className="ml-2 bg-blue-200">
@@ -172,28 +189,42 @@ const OperatorPanel = () => {
               </div>
             )}
             
-            <div className="relative">
-              <button 
-                className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors relative"
-                onClick={dismissNotifications}
-              >
-                <Bell className="h-5 w-5 text-gray-700" />
-                {hasNewNotification && (
-                  <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full"></span>
-                )}
-              </button>
-            </div>
+            {showControls && (
+              <>
+                <div className="relative">
+                  <button 
+                    className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors relative"
+                    onClick={dismissNotifications}
+                  >
+                    <Bell className="h-5 w-5 text-gray-700" />
+                    {hasNewNotification && (
+                      <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full"></span>
+                    )}
+                  </button>
+                </div>
+                
+                <button 
+                  onClick={() => setSoundEnabled(!soundEnabled)}
+                  className={`p-2 rounded-full transition-colors ${
+                    soundEnabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                  }`}
+                >
+                  <span className="text-xs font-medium">
+                    {soundEnabled ? 'Som ON' : 'Som OFF'}
+                  </span>
+                </button>
+              </>
+            )}
             
-            <button 
-              onClick={() => setSoundEnabled(!soundEnabled)}
-              className={`p-2 rounded-full transition-colors ${
-                soundEnabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
-              }`}
-            >
-              <span className="text-xs font-medium">
-                {soundEnabled ? 'Som ON' : 'Som OFF'}
-              </span>
-            </button>
+            {user?.role === 'admin' && (
+              <button
+                onClick={() => setShowHistory(true)}
+                className="bg-amber-100 text-amber-800 px-4 py-2 rounded-md hover:bg-amber-200 transition-colors flex items-center gap-2"
+              >
+                <History className="h-4 w-4" />
+                <span>Histórico</span>
+              </button>
+            )}
             
             <button
               onClick={() => setShowDbStats(true)}
@@ -257,10 +288,10 @@ const OperatorPanel = () => {
           </div>
           
           <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-100">
-            <h3 className="text-sm font-medium text-gray-500 mb-1">Tempo Médio de Resolução</h3>
-            <p className="text-2xl font-bold">~24min</p>
+            <h3 className="text-sm font-medium text-gray-500 mb-1">Histórico</h3>
+            <p className="text-2xl font-bold">{history.length}</p>
             <div className="mt-2 text-xs">
-              <span className="text-green-600">Melhor desempenho: 12min</span>
+              <span className="text-green-600">Operações finalizadas</span>
             </div>
           </div>
         </div>
@@ -344,6 +375,28 @@ const OperatorPanel = () => {
               </div>
               
               <div>
+                <h3 className="text-lg font-medium mb-2">Histórico</h3>
+                <div className="bg-gray-50 p-4 rounded-md border border-gray-200">
+                  <div className="flex justify-between mb-2">
+                    <span className="font-medium">Total de operações arquivadas:</span>
+                    <span>{history.length}</span>
+                  </div>
+                  <div className="flex justify-between mb-2">
+                    <span className="font-medium">Instalações finalizadas:</span>
+                    <span>{history.filter(h => h.type === 'installation').length}</span>
+                  </div>
+                  <div className="flex justify-between mb-2">
+                    <span className="font-medium">CTOs analisadas:</span>
+                    <span>{history.filter(h => h.type === 'cto').length}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium">RMAs processados:</span>
+                    <span>{history.filter(h => h.type === 'rma').length}</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div>
                 <h3 className="text-lg font-medium mb-2">Informações de Armazenamento</h3>
                 <div className="bg-gray-50 p-4 rounded-md border border-gray-200">
                   <p className="mb-2">
@@ -354,6 +407,10 @@ const OperatorPanel = () => {
                     {Math.round((JSON.stringify(operations).length / 1024) * 100) / 100} KB
                   </p>
                   <p className="mb-2">
+                    <span className="font-medium">Tamanho do histórico:</span>{" "}
+                    {Math.round((JSON.stringify(history).length / 1024) * 100) / 100} KB
+                  </p>
+                  <p className="mb-2">
                     <span className="font-medium">Última atualização:</span>{" "}
                     {new Date().toLocaleString()}
                   </p>
@@ -362,6 +419,246 @@ const OperatorPanel = () => {
                   </p>
                 </div>
               </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+        
+        {/* Operation History Dialog - Admin Only */}
+        <Dialog open={showHistory} onOpenChange={setShowHistory}>
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Histórico de Chamados Finalizados</DialogTitle>
+              <DialogDescription>
+                Registro completo de todas as operações finalizadas
+              </DialogDescription>
+            </DialogHeader>
+            
+            <Tabs defaultValue="installation" className="mt-4">
+              <TabsList className="grid grid-cols-3">
+                <TabsTrigger value="installation">Instalações</TabsTrigger>
+                <TabsTrigger value="cto">CTOs</TabsTrigger>
+                <TabsTrigger value="rma">RMAs</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="installation">
+                <div className="rounded-md border overflow-hidden mt-4">
+                  {history.filter(h => h.type === 'installation').length > 0 ? (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Cliente</TableHead>
+                          <TableHead>Técnico</TableHead>
+                          <TableHead>Operador</TableHead>
+                          <TableHead>Data Finalização</TableHead>
+                          <TableHead className="text-right">Ações</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {history
+                          .filter(h => h.type === 'installation')
+                          .sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime())
+                          .map(record => (
+                            <TableRow key={record.id}>
+                              <TableCell>{record.data.Cliente || "N/A"}</TableCell>
+                              <TableCell>{record.technician}</TableCell>
+                              <TableCell>{record.operator}</TableCell>
+                              <TableCell>{new Date(record.completedAt).toLocaleDateString('pt-BR', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}</TableCell>
+                              <TableCell className="text-right">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => setShowOperationDetails(record.id)}
+                                >
+                                  <FileText className="h-4 w-4 mr-1" /> Detalhes
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                      </TableBody>
+                    </Table>
+                  ) : (
+                    <div className="p-6 text-center text-gray-500">
+                      Não há registros de instalações finalizadas.
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="cto">
+                <div className="rounded-md border overflow-hidden mt-4">
+                  {history.filter(h => h.type === 'cto').length > 0 ? (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>CTO</TableHead>
+                          <TableHead>Técnico</TableHead>
+                          <TableHead>Operador</TableHead>
+                          <TableHead>Data Finalização</TableHead>
+                          <TableHead className="text-right">Ações</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {history
+                          .filter(h => h.type === 'cto')
+                          .sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime())
+                          .map(record => (
+                            <TableRow key={record.id}>
+                              <TableCell>{record.data.cto || "N/A"}</TableCell>
+                              <TableCell>{record.technician}</TableCell>
+                              <TableCell>{record.operator}</TableCell>
+                              <TableCell>{new Date(record.completedAt).toLocaleDateString('pt-BR', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}</TableCell>
+                              <TableCell className="text-right">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => setShowOperationDetails(record.id)}
+                                >
+                                  <FileText className="h-4 w-4 mr-1" /> Detalhes
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                      </TableBody>
+                    </Table>
+                  ) : (
+                    <div className="p-6 text-center text-gray-500">
+                      Não há registros de CTOs finalizadas.
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="rma">
+                <div className="rounded-md border overflow-hidden mt-4">
+                  {history.filter(h => h.type === 'rma').length > 0 ? (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Serial</TableHead>
+                          <TableHead>Técnico</TableHead>
+                          <TableHead>Operador</TableHead>
+                          <TableHead>Data Finalização</TableHead>
+                          <TableHead className="text-right">Ações</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {history
+                          .filter(h => h.type === 'rma')
+                          .sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime())
+                          .map(record => (
+                            <TableRow key={record.id}>
+                              <TableCell>{record.data.serial || "N/A"}</TableCell>
+                              <TableCell>{record.technician}</TableCell>
+                              <TableCell>{record.operator}</TableCell>
+                              <TableCell>{new Date(record.completedAt).toLocaleDateString('pt-BR', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}</TableCell>
+                              <TableCell className="text-right">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => setShowOperationDetails(record.id)}
+                                >
+                                  <FileText className="h-4 w-4 mr-1" /> Detalhes
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                      </TableBody>
+                    </Table>
+                  ) : (
+                    <div className="p-6 text-center text-gray-500">
+                      Não há registros de RMAs finalizados.
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+            </Tabs>
+          </DialogContent>
+        </Dialog>
+        
+        {/* Operation Details Dialog */}
+        <Dialog open={!!showOperationDetails} onOpenChange={() => setShowOperationDetails(null)}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Detalhes da Operação</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              {selectedOperation && (
+                <div className="space-y-4">
+                  {/* Display all operation data in a neat format */}
+                  <div className="bg-gray-50 p-4 rounded-md border border-gray-200">
+                    <h3 className="font-medium mb-2">Informações Gerais</h3>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="text-sm text-gray-700">
+                        <span className="font-medium">Tipo:</span> {
+                          selectedOperation.type === 'installation' ? 'Instalação' :
+                          selectedOperation.type === 'cto' ? 'Análise de CTO' : 'RMA'
+                        }
+                      </div>
+                      <div className="text-sm text-gray-700">
+                        <span className="font-medium">Status:</span> {selectedOperation.status.replace(/_/g, ' ')}
+                      </div>
+                      <div className="text-sm text-gray-700">
+                        <span className="font-medium">Criado em:</span> {new Date(selectedOperation.createdAt).toLocaleString('pt-BR')}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-blue-50 p-4 rounded-md border border-blue-200">
+                    <div className="flex items-center gap-2 mb-2">
+                      <User className="h-4 w-4 text-blue-600" />
+                      <h3 className="font-medium text-blue-800">Responsáveis</h3>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="text-sm">
+                        <span className="font-medium">Técnico:</span> {selectedOperation.technician}
+                      </div>
+                      {selectedOperation.assignedOperator && (
+                        <div className="text-sm">
+                          <span className="font-medium">Operador:</span> {selectedOperation.assignedOperator}
+                        </div>
+                      )}
+                      {selectedOperation.assignedAt && (
+                        <div className="text-sm">
+                          <span className="font-medium">Atribuído em:</span> {
+                            new Date(selectedOperation.assignedAt).toLocaleString('pt-BR')
+                          }
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="bg-white p-4 rounded-md border border-gray-200">
+                    <h3 className="font-medium mb-2">Detalhes</h3>
+                    {Object.entries(selectedOperation.data).map(([key, value]) => (
+                      <div key={key} className="mb-1 text-sm">
+                        <span className="font-medium">{key}:</span> {String(value)}
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {selectedOperation.feedback && (
+                    <div className="bg-green-50 p-4 rounded-md border border-green-200">
+                      <h3 className="font-medium text-green-800 mb-2">Feedback</h3>
+                      <p className="text-sm">{selectedOperation.feedback}</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </DialogContent>
         </Dialog>

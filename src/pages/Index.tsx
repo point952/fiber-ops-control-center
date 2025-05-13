@@ -12,7 +12,7 @@ import Footer from '@/components/Footer';
 import { useAuth } from '@/context/AuthContext';
 import { useOperations } from '@/context/OperationContext';
 import { Badge } from '@/components/ui/badge';
-import { MessageSquare, Bell } from 'lucide-react';
+import { MessageSquare, Bell, History } from 'lucide-react';
 import { toast } from 'sonner';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
@@ -28,14 +28,13 @@ const Index = () => {
   const [activeForm, setActiveForm] = useState<FormType>(null);
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const { operations } = useOperations();
+  const { operations, getUserOperations } = useOperations();
   const isMobile = useIsMobile();
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   
-  // Filter operations for the current user
-  const userOperations = operations.filter(op => 
-    op.technician === user?.name || op.technician === user?.username
-  );
+  // Get operations specific to the current technician
+  const userOperations = user ? getUserOperations(user.id) : [];
   
   // Check for operations with feedback
   const operationsWithFeedback = userOperations.filter(op => op.feedback);
@@ -83,6 +82,58 @@ const Index = () => {
     }
   };
 
+  // Filter UI elements based on user role
+  const showAdminButton = user?.role === 'admin';
+  const showOperatorButton = user?.role === 'admin' || user?.role === 'operator';
+  const showHistoryButton = user?.role === 'admin';
+
+  // Render technician operations summary
+  const renderTechnicianOperationsSummary = () => {
+    if (user?.role !== 'technician' && user?.role !== 'admin') return null;
+    
+    if (userOperations.length === 0) return null;
+    
+    const pendingCount = userOperations.filter(op => op.status === 'pendente').length;
+    const inProgressCount = userOperations.filter(op => 
+      op.status === 'iniciando_provisionamento' || 
+      op.status === 'verificando' || 
+      op.status === 'em_analise'
+    ).length;
+    const completedCount = userOperations.filter(op => 
+      op.status === 'provisionamento_finalizado' || 
+      op.status === 'verificacao_finalizada' || 
+      op.status === 'finalizado'
+    ).length;
+    
+    return (
+      <div className="w-full max-w-3xl mx-auto mb-6">
+        <Card className="bg-gray-50 border-blue-100">
+          <CardContent className="p-4">
+            <h3 className="text-lg font-medium mb-3">Minhas Solicitações</h3>
+            <div className="flex justify-between items-center">
+              <div className="text-center px-4">
+                <div className="text-2xl font-bold">{pendingCount}</div>
+                <div className="text-sm text-yellow-600">Pendentes</div>
+              </div>
+              <div className="text-center px-4">
+                <div className="text-2xl font-bold">{inProgressCount}</div>
+                <div className="text-sm text-blue-600">Em Progresso</div>
+              </div>
+              <div className="text-center px-4">
+                <div className="text-2xl font-bold">{completedCount}</div>
+                <div className="text-sm text-green-600">Concluídos</div>
+              </div>
+              <div className="text-center px-4">
+                <div className="text-2xl font-bold">{userOperations.length}</div>
+                <div className="text-sm text-gray-600">Total</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       <Header />
@@ -108,7 +159,17 @@ const Index = () => {
             </button>
           </div>
           
-          {user?.role === 'admin' && (
+          {showHistoryButton && (
+            <Button 
+              variant="outline" 
+              className="bg-amber-100 text-amber-800 border-amber-200 hover:bg-amber-200"
+              onClick={() => setShowHistory(true)}
+            >
+              <History className="h-4 w-4 mr-1" /> Histórico
+            </Button>
+          )}
+          
+          {showAdminButton && (
             <Button 
               variant="outline" 
               className="bg-purple-100 text-purple-800 border-purple-200 hover:bg-purple-200"
@@ -118,7 +179,7 @@ const Index = () => {
             </Button>
           )}
           
-          {(user?.role === 'admin' || user?.role === 'operator') && (
+          {showOperatorButton && (
             <Button 
               variant="outline" 
               className="bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200"
@@ -137,6 +198,8 @@ const Index = () => {
           </Button>
         </div>
       </div>
+      
+      {renderTechnicianOperationsSummary()}
       
       <main className="flex-grow">
         {renderContent()}
@@ -179,6 +242,11 @@ const Index = () => {
                       </p>
                       <p className="text-sm">{op.feedback}</p>
                     </div>
+                    {op.assignedOperator && (
+                      <div className="mt-3 text-sm text-blue-600">
+                        Operador responsável: {op.assignedOperator}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               ))
@@ -186,6 +254,29 @@ const Index = () => {
               <p className="text-center py-8 text-gray-500">
                 Não há notificações ou feedback no momento.
               </p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showHistory} onOpenChange={setShowHistory}>
+        <DialogContent className="sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Histórico de Chamados</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 max-h-[70vh] overflow-y-auto">
+            {/* Admin-only history view */}
+            {user?.role === 'admin' && (
+              <div className="space-y-4">
+                <p className="text-sm text-gray-500 mb-4">
+                  Este histórico é visível apenas para administradores e contém todos os chamados finalizados.
+                </p>
+                
+                {/* This would be populated from the history state */}
+                <p className="text-center py-8 text-gray-500">
+                  O histórico completo está disponível na seção de Administração.
+                </p>
+              </div>
             )}
           </div>
         </DialogContent>

@@ -1,5 +1,5 @@
-
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { useAuth } from './AuthContext';
 
 // Define Types
 export type InstallationStatus = 'pendente' | 'iniciando_provisionamento' | 'provisionamento_finalizado';
@@ -15,27 +15,49 @@ export interface Operation {
   status: InstallationStatus | CTOStatus | RMAStatus;
   feedback?: string;
   technician: string;
+  technicianId?: string;
   assignedOperator?: string;
   assignedAt?: Date;
 }
 
+export interface HistoryRecord {
+  id: string;
+  operationId: string;
+  type: OperationType;
+  data: Record<string, any>;
+  createdAt: Date;
+  completedAt: Date;
+  technician: string;
+  technicianId: string;
+  operator: string;
+  feedback?: string;
+}
+
 interface OperationContextProps {
   operations: Operation[];
-  addOperation: (type: OperationType, data: Record<string, any>, technician: string) => void;
+  addOperation: (type: OperationType, data: Record<string, any>, technician: string, technicianId?: string) => void;
   updateOperationStatus: (id: string, status: InstallationStatus | CTOStatus | RMAStatus) => void;
   updateOperationFeedback: (id: string, feedback: string) => void;
   getOperationsByType: (type: OperationType) => Operation[];
   getPendingOperationsCount: (type?: OperationType) => number;
   assignOperatorToOperation: (id: string, operatorName: string) => void;
   unassignOperatorFromOperation: (id: string) => void;
+  completeOperation: (id: string, operatorName: string) => void;
+  getUserOperations: (technicianId: string) => Operation[];
+  history: HistoryRecord[];
+  getHistoryByType: (type: OperationType) => HistoryRecord[];
 }
 
 const OperationContext = createContext<OperationContextProps | undefined>(undefined);
 
-// Local storage key for operations
+// Local storage keys
 const STORAGE_KEY = 'operations_data';
+const HISTORY_KEY = 'operations_history';
+const USER_DB_PREFIX = 'technician_operations_';
 
 export const OperationProvider: React.FC<{children: ReactNode}> = ({ children }) => {
+  const { user } = useAuth();
+  
   // Default operations if none found in storage
   const defaultOperations: Operation[] = [
     {
@@ -51,7 +73,8 @@ export const OperationProvider: React.FC<{children: ReactNode}> = ({ children })
       },
       createdAt: new Date('2023-05-10T10:30:00'),
       status: 'pendente',
-      technician: 'Técnico Padrão'
+      technician: 'Técnico Padrão',
+      technicianId: '3'
     },
     {
       id: '2',
@@ -65,7 +88,8 @@ export const OperationProvider: React.FC<{children: ReactNode}> = ({ children })
       },
       createdAt: new Date('2023-05-11T14:15:00'),
       status: 'pendente',
-      technician: 'Técnico CTO'
+      technician: 'Técnico CTO',
+      technicianId: '3'
     },
     {
       id: '3',
@@ -77,7 +101,8 @@ export const OperationProvider: React.FC<{children: ReactNode}> = ({ children })
       },
       createdAt: new Date('2023-05-12T09:45:00'),
       status: 'pendente',
-      technician: 'Técnico RMA'
+      technician: 'Técnico RMA',
+      technicianId: '3'
     }
   ];
 
@@ -101,21 +126,81 @@ export const OperationProvider: React.FC<{children: ReactNode}> = ({ children })
     }
   });
 
+  const [history, setHistory] = useState<HistoryRecord[]>(() => {
+    try {
+      const storedHistory = localStorage.getItem(HISTORY_KEY);
+      if (storedHistory) {
+        const parsedHistory = JSON.parse(storedHistory);
+        return parsedHistory.map((record: any) => ({
+          ...record,
+          createdAt: new Date(record.createdAt),
+          completedAt: new Date(record.completedAt)
+        }));
+      }
+      return [];
+    } catch (error) {
+      console.error('Erro ao carregar histórico:', error);
+      return [];
+    }
+  });
+
   // Save to localStorage whenever operations change
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(operations));
   }, [operations]);
 
-  const addOperation = (type: OperationType, data: Record<string, any>, technician: string) => {
+  // Save to localStorage whenever history changes
+  useEffect(() => {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+  }, [history]);
+
+  // Initialize or update technician's individual database
+  useEffect(() => {
+    if (user && user.role === 'technician') {
+      const technicianKey = `${USER_DB_PREFIX}${user.id}`;
+      
+      // Get existing technician operations or initialize
+      const existingOps = localStorage.getItem(technicianKey);
+      if (!existingOps) {
+        // Initialize with any operations already in the system for this technician
+        const technicianOps = operations.filter(op => op.technicianId === user.id || op.technician === user.name);
+        if (technicianOps.length > 0) {
+          localStorage.setItem(technicianKey, JSON.stringify(technicianOps));
+        } else {
+          localStorage.setItem(technicianKey, JSON.stringify([]));
+        }
+      }
+    }
+  }, [user, operations]);
+
+  const addOperation = (type: OperationType, data: Record<string, any>, technician: string, technicianId?: string) => {
     const newOperation: Operation = {
       id: String(Date.now()),
       type,
       data,
       createdAt: new Date(),
       status: 'pendente',
-      technician
+      technician,
+      technicianId: technicianId || (user?.id || '')
     };
+    
     setOperations(prev => [...prev, newOperation]);
+
+    // Also add to technician's individual database if applicable
+    if (technicianId || (user && user.role === 'technician')) {
+      const id = technicianId || user?.id;
+      if (id) {
+        const technicianKey = `${USER_DB_PREFIX}${id}`;
+        try {
+          const existingOps = localStorage.getItem(technicianKey);
+          let technicianOps = existingOps ? JSON.parse(existingOps) : [];
+          technicianOps = [...technicianOps, newOperation];
+          localStorage.setItem(technicianKey, JSON.stringify(technicianOps));
+        } catch (error) {
+          console.error('Erro ao adicionar operação ao banco do técnico:', error);
+        }
+      }
+    }
   };
 
   const updateOperationStatus = (id: string, status: InstallationStatus | CTOStatus | RMAStatus) => {
@@ -124,6 +209,24 @@ export const OperationProvider: React.FC<{children: ReactNode}> = ({ children })
         op.id === id ? { ...op, status } : op
       )
     );
+
+    // Update in technician's database if applicable
+    const operation = operations.find(op => op.id === id);
+    if (operation && operation.technicianId) {
+      const technicianKey = `${USER_DB_PREFIX}${operation.technicianId}`;
+      try {
+        const existingOps = localStorage.getItem(technicianKey);
+        if (existingOps) {
+          let technicianOps = JSON.parse(existingOps);
+          technicianOps = technicianOps.map((op: Operation) => 
+            op.id === id ? { ...op, status } : op
+          );
+          localStorage.setItem(technicianKey, JSON.stringify(technicianOps));
+        }
+      } catch (error) {
+        console.error('Erro ao atualizar status no banco do técnico:', error);
+      }
+    }
   };
 
   const updateOperationFeedback = (id: string, feedback: string) => {
@@ -132,6 +235,24 @@ export const OperationProvider: React.FC<{children: ReactNode}> = ({ children })
         op.id === id ? { ...op, feedback } : op
       )
     );
+
+    // Update in technician's database if applicable
+    const operation = operations.find(op => op.id === id);
+    if (operation && operation.technicianId) {
+      const technicianKey = `${USER_DB_PREFIX}${operation.technicianId}`;
+      try {
+        const existingOps = localStorage.getItem(technicianKey);
+        if (existingOps) {
+          let technicianOps = JSON.parse(existingOps);
+          technicianOps = technicianOps.map((op: Operation) => 
+            op.id === id ? { ...op, feedback } : op
+          );
+          localStorage.setItem(technicianKey, JSON.stringify(technicianOps));
+        }
+      } catch (error) {
+        console.error('Erro ao atualizar feedback no banco do técnico:', error);
+      }
+    }
   };
 
   const assignOperatorToOperation = (id: string, operatorName: string) => {
@@ -144,6 +265,24 @@ export const OperationProvider: React.FC<{children: ReactNode}> = ({ children })
         } : op
       )
     );
+
+    // Update in technician's database if applicable
+    const operation = operations.find(op => op.id === id);
+    if (operation && operation.technicianId) {
+      const technicianKey = `${USER_DB_PREFIX}${operation.technicianId}`;
+      try {
+        const existingOps = localStorage.getItem(technicianKey);
+        if (existingOps) {
+          let technicianOps = JSON.parse(existingOps);
+          technicianOps = technicianOps.map((op: Operation) => 
+            op.id === id ? { ...op, assignedOperator: operatorName, assignedAt: new Date() } : op
+          );
+          localStorage.setItem(technicianKey, JSON.stringify(technicianOps));
+        }
+      } catch (error) {
+        console.error('Erro ao atualizar operador no banco do técnico:', error);
+      }
+    }
   };
 
   const unassignOperatorFromOperation = (id: string) => {
@@ -156,10 +295,119 @@ export const OperationProvider: React.FC<{children: ReactNode}> = ({ children })
         return op;
       })
     );
+
+    // Update in technician's database if applicable
+    const operation = operations.find(op => op.id === id);
+    if (operation && operation.technicianId) {
+      const technicianKey = `${USER_DB_PREFIX}${operation.technicianId}`;
+      try {
+        const existingOps = localStorage.getItem(technicianKey);
+        if (existingOps) {
+          let technicianOps = JSON.parse(existingOps);
+          technicianOps = technicianOps.map((op: Operation) => {
+            if (op.id === id) {
+              const { assignedOperator, assignedAt, ...rest } = op;
+              return rest;
+            }
+            return op;
+          });
+          localStorage.setItem(technicianKey, JSON.stringify(technicianOps));
+        }
+      } catch (error) {
+        console.error('Erro ao remover operador no banco do técnico:', error);
+      }
+    }
+  };
+
+  const completeOperation = (id: string, operatorName: string) => {
+    // Find the operation to complete
+    const operation = operations.find(op => op.id === id);
+    
+    if (!operation) return;
+    
+    // Create a history record
+    const historyRecord: HistoryRecord = {
+      id: String(Date.now()),
+      operationId: operation.id,
+      type: operation.type,
+      data: operation.data,
+      createdAt: operation.createdAt,
+      completedAt: new Date(),
+      technician: operation.technician,
+      technicianId: operation.technicianId || '',
+      operator: operatorName,
+      feedback: operation.feedback
+    };
+    
+    // Add to history
+    setHistory(prev => [...prev, historyRecord]);
+    
+    // Remove from active operations
+    setOperations(prev => prev.filter(op => op.id !== id));
+    
+    // Remove from technician's database but keep completed status
+    if (operation.technicianId) {
+      const technicianKey = `${USER_DB_PREFIX}${operation.technicianId}`;
+      try {
+        const existingOps = localStorage.getItem(technicianKey);
+        if (existingOps) {
+          let technicianOps = JSON.parse(existingOps);
+          
+          // Update the operation status to indicate completion
+          technicianOps = technicianOps.map((op: Operation) => {
+            if (op.id === id) {
+              const completionStatus = 
+                op.type === 'installation' ? 'provisionamento_finalizado' as InstallationStatus :
+                op.type === 'cto' ? 'verificacao_finalizada' as CTOStatus :
+                'finalizado' as RMAStatus;
+              
+              return { 
+                ...op, 
+                status: completionStatus,
+                completedBy: operatorName,
+                completedAt: new Date()
+              };
+            }
+            return op;
+          });
+          
+          localStorage.setItem(technicianKey, JSON.stringify(technicianOps));
+        }
+      } catch (error) {
+        console.error('Erro ao atualizar operação finalizada no banco do técnico:', error);
+      }
+    }
   };
 
   const getOperationsByType = (type: OperationType) => {
     return operations.filter(op => op.type === type);
+  };
+
+  const getHistoryByType = (type: OperationType) => {
+    return history.filter(record => record.type === type);
+  };
+
+  const getUserOperations = (technicianId: string) => {
+    const technicianKey = `${USER_DB_PREFIX}${technicianId}`;
+    try {
+      const existingOps = localStorage.getItem(technicianKey);
+      if (existingOps) {
+        const technicianOps = JSON.parse(existingOps);
+        return technicianOps.map((op: any) => ({
+          ...op,
+          createdAt: new Date(op.createdAt),
+          assignedAt: op.assignedAt ? new Date(op.assignedAt) : undefined,
+          completedAt: op.completedAt ? new Date(op.completedAt) : undefined
+        }));
+      }
+      // If no specific database, filter from main operations
+      return operations.filter(
+        op => op.technicianId === technicianId || op.technician === (user?.name || '')
+      );
+    } catch (error) {
+      console.error('Erro ao carregar operações do técnico:', error);
+      return [];
+    }
   };
 
   const getPendingOperationsCount = (type?: OperationType) => {
@@ -179,7 +427,11 @@ export const OperationProvider: React.FC<{children: ReactNode}> = ({ children })
         getOperationsByType,
         getPendingOperationsCount,
         assignOperatorToOperation,
-        unassignOperatorFromOperation
+        unassignOperatorFromOperation,
+        completeOperation,
+        getUserOperations,
+        history,
+        getHistoryByType
       }}
     >
       {children}
