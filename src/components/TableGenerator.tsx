@@ -1,3 +1,4 @@
+
 import React, { useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -22,19 +23,25 @@ const TableGenerator: React.FC<TableGeneratorProps> = ({ data, title, className,
     if (textRef.current) {
       const text = textRef.current.innerText;
       
+      // Use document.execCommand as a fallback method
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      document.body.appendChild(textArea);
+      textArea.select();
+      
       try {
-        navigator.clipboard.writeText(text)
-          .then(() => {
-            toast.success("Tabela copiada para a área de transferência");
-          })
-          .catch(err => {
-            toast.error("Não foi possível copiar a tabela");
-            console.error("Clipboard write error:", err);
-          });
+        const successful = document.execCommand('copy');
+        if (successful) {
+          toast.success("Tabela copiada para a área de transferência");
+        } else {
+          toast.error("Não foi possível copiar a tabela");
+        }
       } catch (err) {
         toast.error("Não foi possível copiar a tabela");
         console.error("Clipboard error:", err);
       }
+      
+      document.body.removeChild(textArea);
     }
   };
 
