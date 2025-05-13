@@ -12,6 +12,7 @@ import {
   DialogFooter
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
+import { MessageSquare, Clock } from 'lucide-react';
 
 const RMAOperations = () => {
   const { operations, updateOperationStatus, updateOperationFeedback } = useOperations();
@@ -80,6 +81,23 @@ const RMAOperations = () => {
     }
   };
 
+  const getOperationAge = (date: Date) => {
+    const diff = new Date().getTime() - new Date(date).getTime();
+    const minutes = Math.floor(diff / 60000);
+    
+    if (minutes < 60) {
+      return `${minutes} min`;
+    } else {
+      const hours = Math.floor(minutes / 60);
+      if (hours < 24) {
+        return `${hours} h`;
+      } else {
+        const days = Math.floor(hours / 24);
+        return `${days} d`;
+      }
+    }
+  };
+
   return (
     <div>
       <h2 className="text-xl font-semibold mb-6">Gerenciamento de RMA</h2>
@@ -94,6 +112,7 @@ const RMAOperations = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>Data</TableHead>
+                <TableHead>Espera</TableHead>
                 <TableHead>Técnico</TableHead>
                 <TableHead>Modelo</TableHead>
                 <TableHead>Serial</TableHead>
@@ -104,8 +123,14 @@ const RMAOperations = () => {
             </TableHeader>
             <TableBody>
               {rmaOperations.map((op) => (
-                <TableRow key={op.id}>
+                <TableRow key={op.id} className={op.status === 'pendente' ? 'bg-yellow-50' : ''}>
                   <TableCell>{formatDate(op.createdAt)}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center text-xs text-gray-500">
+                      <Clock className="h-3 w-3 mr-1" />
+                      {getOperationAge(op.createdAt)}
+                    </div>
+                  </TableCell>
                   <TableCell>{op.technician}</TableCell>
                   <TableCell>{op.data.modelo || 'N/A'}</TableCell>
                   <TableCell>{op.data.serial || 'N/A'}</TableCell>
@@ -140,6 +165,7 @@ const RMAOperations = () => {
                         size="sm"
                         onClick={() => openFeedbackDialog(op.id)}
                       >
+                        <MessageSquare className="h-4 w-4 mr-1" />
                         Feedback
                       </Button>
                     </div>
