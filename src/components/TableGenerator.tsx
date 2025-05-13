@@ -49,18 +49,18 @@ const TableGenerator: React.FC<TableGeneratorProps> = ({ data, title, className,
   const operationExists = operations.some(op => 
     op.type === type && 
     op.technician === technician && 
-    (type === 'installation' ? op.data.Serial === data.Serial : false) || 
-    (type === 'rma' ? op.data.serial === data.serial : false) || 
-    (type === 'cto' ? op.data.cto === data.cto : false)
+    ((type === 'installation' && op.data.Serial === data.Serial) || 
+    (type === 'rma' && op.data.serial === data.serial) || 
+    (type === 'cto' && op.data.Bairro === data.Bairro && op.data.Rua === data.Rua))
   );
 
   // Find a matching operation to check its status
   const matchingOperation = operations.find(op => 
     op.type === type && 
     op.technician === technician && 
-    (type === 'installation' ? op.data.Serial === data.Serial : false) || 
-    (type === 'rma' ? op.data.serial === data.serial : false) || 
-    (type === 'cto' ? op.data.cto === data.cto : false)
+    ((type === 'installation' && op.data.Serial === data.Serial) || 
+    (type === 'rma' && op.data.serial === data.serial) || 
+    (type === 'cto' && op.data.Bairro === data.Bairro && op.data.Rua === data.Rua))
   );
 
   // Get status from matching operation
