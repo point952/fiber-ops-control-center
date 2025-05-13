@@ -1,4 +1,3 @@
-
 import React, { useRef, useContext } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -22,15 +21,21 @@ const TableGenerator: React.FC<TableGeneratorProps> = ({ data, title, className,
   const copyToClipboard = () => {
     if (textRef.current) {
       const text = textRef.current.innerText;
-      navigator.clipboard.writeText(text)
-        .then(
-          () => {
+      
+      // Use alternative approach to avoid TypeScript errors
+      try {
+        navigator.clipboard.writeText(text)
+          .then(() => {
             toast.success("Tabela copiada para a área de transferência");
-          },
-          () => {
+          })
+          .catch(() => {
             toast.error("Não foi possível copiar a tabela");
-          }
-        );
+          });
+      } catch (err) {
+        // Fallback for browsers without clipboard API support
+        toast.error("Não foi possível copiar a tabela");
+        console.error("Clipboard error:", err);
+      }
     }
   };
 
