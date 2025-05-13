@@ -553,6 +553,8 @@ const RMAForm: React.FC<{ onBack: () => void }> = ({ onBack }) => {
               'Observações': formData.observacoes,
             }}
             title="Relatório de RMA" 
+            type="rma"
+            technician={formData.tecnico || "Técnico RMA"}
           />
           
           <div className="flex justify-between">

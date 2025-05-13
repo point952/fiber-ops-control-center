@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -155,6 +154,8 @@ const CTOAnalysisForm: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                 }), {}),
             }}
             title="Análise de CTO" 
+            type="cto"
+            technician="Técnico CTO"
           />
           
           <div className="flex justify-between">
