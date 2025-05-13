@@ -1,4 +1,3 @@
-
 import React, { useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -30,7 +29,6 @@ const TableGenerator: React.FC<TableGeneratorProps> = ({ data, title, className,
       textArea.select();
       
       try {
-        // Fixed: Adding all three required arguments to execCommand
         const successful = document.execCommand('copy', false, undefined);
         if (successful) {
           toast.success("Tabela copiada para a área de transferência");
