@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -402,7 +401,9 @@ const InstallationForm: React.FC<{ onBack: () => void }> = ({ onBack }) => {
               'Senha': showWifiFields ? formData.senha : 'N/A',
               'Coordenadas': formData.coordenadas,
             }}
-            title="Resumo da Instalação/Upgrade" 
+            title="Resumo da Instalação/Upgrade"
+            type="installation"
+            technician={formData.cliente} // Using client name as technician identifier for demo
           />
           
           <div className="flex justify-between">

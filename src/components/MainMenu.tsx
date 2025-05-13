@@ -1,9 +1,10 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Settings, FileBarChart, Box } from 'lucide-react';
+import { Settings, FileBarChart, Box, Monitor } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { Link } from 'react-router-dom';
 
 interface MainMenuProps {
   onSelect: (option: 'installation' | 'cto' | 'rma') => void;
@@ -62,6 +63,15 @@ const MainMenu: React.FC<MainMenuProps> = ({ onSelect, className }) => {
             </Button>
           </CardContent>
         </Card>
+      </div>
+      
+      <div className="mt-12 text-center">
+        <Link to="/operador">
+          <Button variant="outline" className="bg-gray-100 hover:bg-gray-200">
+            <Monitor className="h-5 w-5 mr-2" />
+            Acessar Painel do Operador
+          </Button>
+        </Link>
       </div>
     </div>
   );
