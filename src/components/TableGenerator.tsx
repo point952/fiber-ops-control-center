@@ -22,14 +22,15 @@ const TableGenerator: React.FC<TableGeneratorProps> = ({ data, title, className,
   const copyToClipboard = () => {
     if (textRef.current) {
       const text = textRef.current.innerText;
-      navigator.clipboard.writeText(text).then(
-        () => {
-          toast.success("Tabela copiada para a área de transferência");
-        },
-        () => {
-          toast.error("Não foi possível copiar a tabela");
-        }
-      );
+      navigator.clipboard.writeText(text)
+        .then(
+          () => {
+            toast.success("Tabela copiada para a área de transferência");
+          },
+          () => {
+            toast.error("Não foi possível copiar a tabela");
+          }
+        );
     }
   };
 
