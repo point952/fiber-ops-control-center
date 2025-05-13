@@ -25,12 +25,15 @@ const TableGenerator: React.FC<TableGeneratorProps> = ({ data, title, className,
       // Use alternative approach to avoid TypeScript errors
       try {
         navigator.clipboard.writeText(text)
-          .then(() => {
-            toast.success("Tabela copiada para a área de transferência");
-          })
-          .catch(() => {
-            toast.error("Não foi possível copiar a tabela");
-          });
+          .then(
+            () => {
+              toast.success("Tabela copiada para a área de transferência");
+            },
+            (err) => {
+              toast.error("Não foi possível copiar a tabela");
+              console.error("Clipboard write error:", err);
+            }
+          );
       } catch (err) {
         // Fallback for browsers without clipboard API support
         toast.error("Não foi possível copiar a tabela");
