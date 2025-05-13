@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 
 // Define Types
 export type InstallationStatus = 'pendente' | 'iniciando_provisionamento' | 'provisionamento_finalizado';
@@ -15,6 +15,8 @@ export interface Operation {
   status: InstallationStatus | CTOStatus | RMAStatus;
   feedback?: string;
   technician: string;
+  assignedOperator?: string;
+  assignedAt?: Date;
 }
 
 interface OperationContextProps {
@@ -24,12 +26,18 @@ interface OperationContextProps {
   updateOperationFeedback: (id: string, feedback: string) => void;
   getOperationsByType: (type: OperationType) => Operation[];
   getPendingOperationsCount: (type?: OperationType) => number;
+  assignOperatorToOperation: (id: string, operatorName: string) => void;
+  unassignOperatorFromOperation: (id: string) => void;
 }
 
 const OperationContext = createContext<OperationContextProps | undefined>(undefined);
 
+// Local storage key for operations
+const STORAGE_KEY = 'operations_data';
+
 export const OperationProvider: React.FC<{children: ReactNode}> = ({ children }) => {
-  const [operations, setOperations] = useState<Operation[]>([
+  // Default operations if none found in storage
+  const defaultOperations: Operation[] = [
     {
       id: '1',
       type: 'installation',
@@ -71,7 +79,32 @@ export const OperationProvider: React.FC<{children: ReactNode}> = ({ children })
       status: 'pendente',
       technician: 'Técnico RMA'
     }
-  ]);
+  ];
+
+  // Initialize state from localStorage or with default values
+  const [operations, setOperations] = useState<Operation[]>(() => {
+    try {
+      const storedOperations = localStorage.getItem(STORAGE_KEY);
+      if (storedOperations) {
+        // Parse and fix date objects that are stored as strings
+        const parsedOperations = JSON.parse(storedOperations);
+        return parsedOperations.map((op: any) => ({
+          ...op,
+          createdAt: new Date(op.createdAt),
+          assignedAt: op.assignedAt ? new Date(op.assignedAt) : undefined
+        }));
+      }
+      return defaultOperations;
+    } catch (error) {
+      console.error('Erro ao carregar operações:', error);
+      return defaultOperations;
+    }
+  });
+
+  // Save to localStorage whenever operations change
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(operations));
+  }, [operations]);
 
   const addOperation = (type: OperationType, data: Record<string, any>, technician: string) => {
     const newOperation: Operation = {
@@ -101,6 +134,30 @@ export const OperationProvider: React.FC<{children: ReactNode}> = ({ children })
     );
   };
 
+  const assignOperatorToOperation = (id: string, operatorName: string) => {
+    setOperations(prev => 
+      prev.map(op => 
+        op.id === id ? { 
+          ...op, 
+          assignedOperator: operatorName,
+          assignedAt: new Date()
+        } : op
+      )
+    );
+  };
+
+  const unassignOperatorFromOperation = (id: string) => {
+    setOperations(prev => 
+      prev.map(op => {
+        if (op.id === id) {
+          const { assignedOperator, assignedAt, ...rest } = op;
+          return rest;
+        }
+        return op;
+      })
+    );
+  };
+
   const getOperationsByType = (type: OperationType) => {
     return operations.filter(op => op.type === type);
   };
@@ -120,7 +177,9 @@ export const OperationProvider: React.FC<{children: ReactNode}> = ({ children })
         updateOperationStatus,
         updateOperationFeedback,
         getOperationsByType,
-        getPendingOperationsCount
+        getPendingOperationsCount,
+        assignOperatorToOperation,
+        unassignOperatorFromOperation
       }}
     >
       {children}

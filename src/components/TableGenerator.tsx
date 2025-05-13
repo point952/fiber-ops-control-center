@@ -1,3 +1,4 @@
+
 import React, { useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -45,12 +46,7 @@ const TableGenerator: React.FC<TableGeneratorProps> = ({ data, title, className,
   };
 
   const sendToOperator = () => {
-    addOperation({
-      type,
-      data,
-      status: 'pendente',
-      technician,
-    });
+    addOperation(type, data, technician);
     
     toast.success("Informações enviadas para o operador");
   };
