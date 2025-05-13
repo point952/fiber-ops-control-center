@@ -13,7 +13,11 @@ import {
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 
-const InstallationOperations = () => {
+interface InstallationOperationsProps {
+  onClaimTask?: (operationId: string) => void;
+}
+
+const InstallationOperations: React.FC<InstallationOperationsProps> = ({ onClaimTask }) => {
   const { operations, updateOperationStatus, updateOperationFeedback } = useOperations();
   const [selectedOperation, setSelectedOperation] = useState<string | null>(null);
   const [feedback, setFeedback] = useState('');
@@ -119,6 +123,15 @@ const InstallationOperations = () => {
                   </TableCell>
                   <TableCell>
                     <div className="flex space-x-2">
+                      {onClaimTask && !op.assignedOperator && (
+                        <Button 
+                          variant="secondary" 
+                          size="sm"
+                          onClick={() => onClaimTask(op.id)}
+                        >
+                          Assumir
+                        </Button>
+                      )}
                       <Button 
                         variant="outline" 
                         size="sm"

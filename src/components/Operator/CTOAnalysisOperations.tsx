@@ -14,7 +14,11 @@ import {
 import { toast } from 'sonner';
 import { Checkbox } from '@/components/ui/checkbox';
 
-const CTOAnalysisOperations = () => {
+interface CTOAnalysisOperationsProps {
+  onClaimTask?: (operationId: string) => void;
+}
+
+const CTOAnalysisOperations: React.FC<CTOAnalysisOperationsProps> = ({ onClaimTask }) => {
   const { operations, updateOperationStatus, updateOperationFeedback } = useOperations();
   const [selectedOperation, setSelectedOperation] = useState<string | null>(null);
   const [feedback, setFeedback] = useState('');
@@ -159,6 +163,15 @@ const CTOAnalysisOperations = () => {
                   </TableCell>
                   <TableCell>
                     <div className="flex space-x-2">
+                      {onClaimTask && !op.assignedOperator && (
+                        <Button 
+                          variant="secondary" 
+                          size="sm"
+                          onClick={() => onClaimTask(op.id)}
+                        >
+                          Assumir
+                        </Button>
+                      )}
                       <Button 
                         variant="outline" 
                         size="sm"

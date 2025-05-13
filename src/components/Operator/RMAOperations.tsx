@@ -14,7 +14,11 @@ import {
 import { toast } from 'sonner';
 import { MessageSquare, Clock } from 'lucide-react';
 
-const RMAOperations = () => {
+interface RMAOperationsProps {
+  onClaimTask?: (operationId: string) => void;
+}
+
+const RMAOperations: React.FC<RMAOperationsProps> = ({ onClaimTask }) => {
   const { operations, updateOperationStatus, updateOperationFeedback } = useOperations();
   const [selectedOperation, setSelectedOperation] = useState<string | null>(null);
   const [feedback, setFeedback] = useState('');
@@ -144,6 +148,15 @@ const RMAOperations = () => {
                   </TableCell>
                   <TableCell>
                     <div className="flex space-x-2">
+                      {onClaimTask && !op.assignedOperator && (
+                        <Button 
+                          variant="secondary" 
+                          size="sm"
+                          onClick={() => onClaimTask(op.id)}
+                        >
+                          Assumir
+                        </Button>
+                      )}
                       <Button 
                         variant="outline" 
                         size="sm"
