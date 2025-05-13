@@ -30,7 +30,7 @@ const TableGenerator: React.FC<TableGeneratorProps> = ({ data, title, className,
       textArea.select();
       
       try {
-        // Fix: Add all required arguments to execCommand
+        // Fixed: Adding all three required arguments to execCommand
         const successful = document.execCommand('copy', false, undefined);
         if (successful) {
           toast.success("Tabela copiada para a área de transferência");
