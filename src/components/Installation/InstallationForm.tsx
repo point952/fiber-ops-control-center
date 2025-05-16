@@ -149,8 +149,8 @@ const InstallationForm: React.FC<{ onBack: () => void }> = ({ onBack }) => {
         <Card>
           <CardContent className="pt-6">
             <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Cidade */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Cidade */}
                 <div className="space-y-2">
                   <Label htmlFor="cidade" className={errors.cidade ? 'text-red-500' : ''}>
                     Cidade*
@@ -387,7 +387,7 @@ const InstallationForm: React.FC<{ onBack: () => void }> = ({ onBack }) => {
       ) : (
         <div className="space-y-4">
           <TableGenerator 
-            data={{
+            formData={{
               Cidade: formData.cidade,
               Modelo: formData.modelo,
               Plano: formData.plano,
@@ -401,9 +401,8 @@ const InstallationForm: React.FC<{ onBack: () => void }> = ({ onBack }) => {
               'Senha': showWifiFields ? formData.senha : 'N/A',
               'Coordenadas': formData.coordenadas,
             }}
-            title="Resumo da Instalação/Upgrade"
             type="installation"
-            technician={formData.cliente} // Using client name as technician identifier for demo
+            onBack={() => setShowTable(false)}
           />
           
           <div className="flex justify-between">

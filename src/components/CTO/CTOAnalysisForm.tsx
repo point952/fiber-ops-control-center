@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -141,7 +142,7 @@ const CTOAnalysisForm: React.FC<{ onBack: () => void }> = ({ onBack }) => {
       ) : (
         <div className="space-y-4">
           <TableGenerator 
-            data={{
+            formData={{
               'Tipo de Splitter': formData.tipoSplitter,
               'Bairro': formData.bairro,
               'Rua': formData.rua,
@@ -153,9 +154,8 @@ const CTOAnalysisForm: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                   [`Porta ${index + 1}`]: porta || 'Não preenchido',
                 }), {}),
             }}
-            title="Análise de CTO" 
             type="cto"
-            technician="Técnico CTO"
+            onBack={() => setShowTable(false)}
           />
           
           <div className="flex justify-between">

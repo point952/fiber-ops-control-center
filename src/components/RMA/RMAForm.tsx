@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -534,7 +533,7 @@ const RMAForm: React.FC<{ onBack: () => void }> = ({ onBack }) => {
       ) : (
         <div className="space-y-4">
           <TableGenerator 
-            data={{
+            formData={{
               'Serviço': formData.servico,
               'Nome': formData.nome,
               'Data': formData.data ? format(formData.data, "dd/MM/yyyy") : '',
@@ -552,9 +551,8 @@ const RMAForm: React.FC<{ onBack: () => void }> = ({ onBack }) => {
               'Técnico': formData.tecnico,
               'Observações': formData.observacoes,
             }}
-            title="Relatório de RMA" 
             type="rma"
-            technician={formData.tecnico || "Técnico RMA"}
+            onBack={() => setShowTable(false)}
           />
           
           <div className="flex justify-between">
