@@ -9,6 +9,7 @@ import InstallationOperations from '@/components/Operator/InstallationOperations
 import CTOAnalysisOperations from '@/components/Operator/CTOAnalysisOperations';
 import RMAOperations from '@/components/Operator/RMAOperations';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Bell, MessageSquare, Database, History, FileText, User } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -18,6 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from '@/components/ui/dialog';
 import {
   Table,
