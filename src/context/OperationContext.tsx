@@ -14,6 +14,7 @@ export interface Operation {
   createdAt: Date;
   status: InstallationStatus | CTOStatus | RMAStatus;
   feedback?: string;
+  technicianResponse?: string; // Nova propriedade para armazenar a resposta do técnico
   technician: string;
   technicianId?: string;
   assignedOperator?: string;
@@ -31,6 +32,7 @@ export interface HistoryRecord {
   technicianId: string;
   operator: string;
   feedback?: string;
+  technicianResponse?: string; // Nova propriedade para armazenar a resposta do técnico no histórico
 }
 
 interface OperationContextProps {
@@ -38,6 +40,7 @@ interface OperationContextProps {
   addOperation: (type: OperationType, data: Record<string, any>, technician: string, technicianId?: string) => void;
   updateOperationStatus: (id: string, status: InstallationStatus | CTOStatus | RMAStatus) => void;
   updateOperationFeedback: (id: string, feedback: string) => void;
+  updateTechnicianResponse: (id: string, response: string) => void; // Nova função para atualizar a resposta do técnico
   getOperationsByType: (type: OperationType) => Operation[];
   getPendingOperationsCount: (type?: OperationType) => number;
   assignOperatorToOperation: (id: string, operatorName: string) => void;
@@ -255,6 +258,33 @@ export const OperationProvider: React.FC<{children: ReactNode}> = ({ children })
     }
   };
 
+  // Nova função para atualizar a resposta do técnico
+  const updateTechnicianResponse = (id: string, response: string) => {
+    setOperations(prev => 
+      prev.map(op => 
+        op.id === id ? { ...op, technicianResponse: response } : op
+      )
+    );
+
+    // Update in technician's database if applicable
+    const operation = operations.find(op => op.id === id);
+    if (operation && operation.technicianId) {
+      const technicianKey = `${USER_DB_PREFIX}${operation.technicianId}`;
+      try {
+        const existingOps = localStorage.getItem(technicianKey);
+        if (existingOps) {
+          let technicianOps = JSON.parse(existingOps);
+          technicianOps = technicianOps.map((op: Operation) => 
+            op.id === id ? { ...op, technicianResponse: response } : op
+          );
+          localStorage.setItem(technicianKey, JSON.stringify(technicianOps));
+        }
+      } catch (error) {
+        console.error('Erro ao atualizar resposta no banco do técnico:', error);
+      }
+    }
+  };
+
   const assignOperatorToOperation = (id: string, operatorName: string) => {
     setOperations(prev => 
       prev.map(op => 
@@ -336,7 +366,8 @@ export const OperationProvider: React.FC<{children: ReactNode}> = ({ children })
       technician: operation.technician,
       technicianId: operation.technicianId || '',
       operator: operatorName,
-      feedback: operation.feedback
+      feedback: operation.feedback,
+      technicianResponse: operation.technicianResponse // Incluindo a resposta do técnico no histórico
     };
     
     // Add to history
@@ -424,6 +455,7 @@ export const OperationProvider: React.FC<{children: ReactNode}> = ({ children })
         addOperation, 
         updateOperationStatus,
         updateOperationFeedback,
+        updateTechnicianResponse,
         getOperationsByType,
         getPendingOperationsCount,
         assignOperatorToOperation,

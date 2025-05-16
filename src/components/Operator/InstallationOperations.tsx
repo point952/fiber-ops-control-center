@@ -1,330 +1,287 @@
 
 import React, { useState } from 'react';
 import { useOperations } from '@/context/OperationContext';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { useAuth } from '@/context/AuthContext';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogTrigger,
-} from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { useAuth } from '@/context/AuthContext';
+import { 
+  Clock, 
+  CheckCircle2, 
+  User, 
+  Send,
+  MessageSquare,
+  RefreshCcw
+} from 'lucide-react';
 
 interface InstallationOperationsProps {
   onClaimTask?: (operationId: string) => void;
 }
 
-const InstallationOperations: React.FC<InstallationOperationsProps> = ({ onClaimTask }) => {
-  const { operations, updateOperationStatus, updateOperationFeedback, completeOperation } = useOperations();
+const InstallationOperations = ({ onClaimTask }: InstallationOperationsProps) => {
   const { user } = useAuth();
-  const [selectedOperation, setSelectedOperation] = useState<string | null>(null);
-  const [feedback, setFeedback] = useState('');
-  const [showDetails, setShowDetails] = useState(false);
-  const [completionConfirmOpen, setCompletionConfirmOpen] = useState(false);
+  const { operations, updateOperationStatus, updateOperationFeedback, completeOperation } = useOperations();
   
-  // Filter operations to show only installation type
+  // Filter to show only installation operations
   const installationOperations = operations.filter(op => op.type === 'installation');
-
-  const handleProvisioningStart = (id: string) => {
-    updateOperationStatus(id, 'iniciando_provisionamento');
-    toast.success("Status atualizado para: Iniciando Provisionamento");
-  };
-
-  const handleProvisioningComplete = (id: string) => {
-    updateOperationStatus(id, 'provisionamento_finalizado');
-    toast.success("Status atualizado para: Provisionamento Finalizado");
-  };
-
-  const handleSendFeedback = () => {
-    if (selectedOperation && feedback.trim()) {
-      updateOperationFeedback(selectedOperation, feedback);
-      setFeedback('');
-      setSelectedOperation(null);
-      toast.success("Feedback enviado com sucesso");
-    }
+  
+  // State for handling feedback text inputs
+  const [feedbackText, setFeedbackText] = useState<Record<string, string>>({});
+  
+  // State to track expanded operations
+  const [expandedOperations, setExpandedOperations] = useState<Record<string, boolean>>({});
+  
+  // State to track operations in working state
+  const [workingOperations, setWorkingOperations] = useState<Record<string, boolean>>({});
+  
+  // Toggle expansion of an operation card
+  const toggleExpand = (operationId: string) => {
+    setExpandedOperations(prev => ({
+      ...prev,
+      [operationId]: !prev[operationId]
+    }));
   };
   
-  const handleCompleteOperation = () => {
-    if (selectedOperation && user) {
-      completeOperation(selectedOperation, user.name);
-      setCompletionConfirmOpen(false);
-      setSelectedOperation(null);
-      toast.success("Chamado finalizado e arquivado com sucesso");
-    }
+  // Update feedback text for an operation
+  const handleFeedbackChange = (operationId: string, text: string) => {
+    setFeedbackText(prev => ({
+      ...prev,
+      [operationId]: text
+    }));
   };
-
-  const selectedOp = operations.find(op => op.id === selectedOperation);
+  
+  // Send feedback to technician
+  const sendFeedback = (operationId: string) => {
+    const feedback = feedbackText[operationId];
+    if (!feedback || feedback.trim() === '') {
+      toast.error('Por favor, escreva um feedback antes de enviar');
+      return;
+    }
+    
+    updateOperationFeedback(operationId, feedback);
+    toast.success('Feedback enviado com sucesso!');
+    
+    // Clear the feedback text
+    setFeedbackText(prev => ({
+      ...prev,
+      [operationId]: ''
+    }));
+  };
+  
+  // Start working on an operation
+  const startWorking = (operationId: string) => {
+    updateOperationStatus(operationId, 'iniciando_provisionamento');
+    setWorkingOperations(prev => ({
+      ...prev,
+      [operationId]: true
+    }));
+    toast.info('Provisionamento iniciado');
+  };
+  
+  // Complete an operation
+  const handleComplete = (operationId: string) => {
+    if (!user) return;
+    
+    completeOperation(operationId, user.name);
+    toast.success('Operação concluída com sucesso!');
+    
+    setWorkingOperations(prev => {
+      const newState = { ...prev };
+      delete newState[operationId];
+      return newState;
+    });
+  };
+  
+  // Check if current user is assigned to this operation
+  const isAssignedToMe = (operation: any) => {
+    return operation.assignedOperator === user?.name || operation.assignedOperator === user?.username;
+  };
 
   return (
-    <div>
-      <h2 className="text-xl font-bold mb-4">Instalações e Upgrades</h2>
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-xl font-semibold">Operações de Instalação/Upgrade</h2>
+        <Badge variant="outline" className="bg-blue-100 text-blue-800">
+          {installationOperations.length} operação(ões)
+        </Badge>
+      </div>
       
       {installationOperations.length === 0 ? (
-        <div className="text-center py-8 text-gray-500">
-          Não há solicitações de instalação no momento.
+        <div className="text-center py-12 bg-gray-50 rounded-lg">
+          <p className="text-gray-500">Não há operações de instalação pendentes</p>
         </div>
       ) : (
-        <div className="rounded-md border overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[100px]">ID</TableHead>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Serviço</TableHead>
-                <TableHead>Técnico</TableHead>
-                <TableHead>Criado em</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {installationOperations.map((op) => (
-                <TableRow key={op.id}>
-                  <TableCell className="font-medium">{op.id.substring(0, 8)}</TableCell>
-                  <TableCell>{op.data.Cliente || "N/A"}</TableCell>
-                  <TableCell>{op.data.Serviço || "N/A"}</TableCell>
-                  <TableCell>{op.technician || "N/A"}</TableCell>
-                  <TableCell>
-                    {new Date(op.createdAt).toLocaleDateString('pt-BR', {
-                      day: '2-digit',
-                      month: '2-digit',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={op.status === 'pendente' ? "outline" : 
-                              op.status === 'iniciando_provisionamento' ? "secondary" : 
-                              "default"}
-                      className={op.status === 'provisionamento_finalizado' ? "bg-green-600 text-white" : ""}
-                    >
-                      {op.status.replace(/_/g, ' ')}
-                    </Badge>
-                    {op.assignedOperator && (
-                      <div className="text-xs text-blue-600 mt-1">
-                        Resp: {op.assignedOperator}
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex space-x-2">
-                      {onClaimTask && !op.assignedOperator && (
-                        <Button 
-                          variant="secondary" 
-                          size="sm"
-                          onClick={() => onClaimTask(op.id)}
-                        >
-                          Assumir
-                        </Button>
-                      )}
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => {
-                          setSelectedOperation(op.id);
-                          setShowDetails(true);
-                        }}
-                      >
-                        Detalhes
-                      </Button>
-                      
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => setSelectedOperation(op.id)}
-                          >
-                            Feedback
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="sm:max-w-md">
-                          <DialogHeader>
-                            <DialogTitle>Adicionar Feedback</DialogTitle>
-                          </DialogHeader>
-                          <div className="space-y-4 py-4">
-                            <div className="space-y-2">
-                              <p className="text-sm text-muted-foreground">
-                                Adicione instruções ou comentários para o técnico sobre esta instalação.
-                              </p>
-                              <textarea 
-                                className="w-full p-2 border rounded-md" 
-                                rows={4}
-                                value={feedback}
-                                onChange={(e) => setFeedback(e.target.value)}
-                                placeholder="Escreva seu feedback aqui..."
-                              ></textarea>
-                            </div>
-                          </div>
-                          <DialogFooter>
-                            <Button variant="outline" onClick={() => setSelectedOperation(null)}>Cancelar</Button>
-                            <Button onClick={handleSendFeedback}>Enviar Feedback</Button>
-                          </DialogFooter>
-                        </DialogContent>
-                      </Dialog>
-                      
-                      {op.status === 'pendente' && (
-                        <Button 
-                          variant="default" 
-                          size="sm"
-                          onClick={() => handleProvisioningStart(op.id)}
-                        >
-                          Iniciar Prov.
-                        </Button>
-                      )}
-                      
-                      {op.status === 'iniciando_provisionamento' && (
-                        <Button 
-                          variant="default" 
-                          size="sm"
-                          className="bg-green-600 hover:bg-green-700"
-                          onClick={() => handleProvisioningComplete(op.id)}
-                        >
-                          Finalizar Prov.
-                        </Button>
-                      )}
-                      
-                      {op.status === 'provisionamento_finalizado' && (
-                        <Button 
-                          variant="destructive" 
-                          size="sm"
-                          onClick={() => {
-                            setSelectedOperation(op.id);
-                            setCompletionConfirmOpen(true);
-                          }}
-                        >
-                          Arquivar
-                        </Button>
-                      )}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {installationOperations.map((operation) => (
+            <Card 
+              key={operation.id} 
+              className={`overflow-hidden border ${
+                operation.status === 'pendente' 
+                  ? 'border-yellow-200' 
+                  : operation.status === 'iniciando_provisionamento'
+                    ? 'border-blue-300'
+                    : 'border-green-300'
+              } ${expandedOperations[operation.id] ? 'ring-2 ring-blue-400' : ''}`}
+            >
+              <CardContent className="p-0">
+                {/* Header */}
+                <div 
+                  className={`p-4 cursor-pointer ${
+                    operation.status === 'pendente' 
+                      ? 'bg-yellow-50' 
+                      : operation.status === 'iniciando_provisionamento'
+                        ? 'bg-blue-50'
+                        : 'bg-green-50'
+                  }`}
+                  onClick={() => toggleExpand(operation.id)}
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="font-medium">
+                        {operation.data.Cliente || 'Cliente não especificado'}
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        {operation.data.Serviço || 'Serviço não especificado'}
+                      </p>
                     </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
-      
-      <Dialog open={showDetails} onOpenChange={setShowDetails}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Detalhes da Instalação</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4 max-h-[70vh] overflow-y-auto">
-            {selectedOp && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1">
-                    <p className="text-sm font-semibold">Cliente:</p>
-                    <p className="text-sm">{selectedOp.data.Cliente || "N/A"}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-semibold">Serviço:</p>
-                    <p className="text-sm">{selectedOp.data.Serviço || "N/A"}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-semibold">Modelo:</p>
-                    <p className="text-sm">{selectedOp.data.Modelo || "N/A"}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-semibold">Serial:</p>
-                    <p className="text-sm">{selectedOp.data.Serial || "N/A"}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-semibold">Endereço:</p>
-                    <p className="text-sm">{selectedOp.data.Endereço || "N/A"}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-semibold">Técnico:</p>
-                    <p className="text-sm">{selectedOp.technician || "N/A"}</p>
+                    <Badge variant={
+                      operation.status === 'pendente' 
+                        ? 'outline' 
+                        : operation.status === 'iniciando_provisionamento'
+                          ? 'secondary'
+                          : 'success'
+                    }>
+                      {operation.status === 'pendente' 
+                        ? 'Pendente' 
+                        : operation.status === 'iniciando_provisionamento'
+                          ? 'Provisionando'
+                          : 'Finalizado'
+                      }
+                    </Badge>
                   </div>
                 </div>
-                
-                {selectedOp.data.Observações && (
-                  <div className="p-3 bg-gray-50 rounded-md">
-                    <p className="text-sm font-semibold">Observações:</p>
-                    <p className="text-sm">{selectedOp.data.Observações}</p>
-                  </div>
-                )}
 
-                {/* Exibir o resumo da instalação se presente */}
-                {selectedOp.data.resumo && (
-                  <div className="p-3 bg-blue-50 rounded-md border border-blue-100">
-                    <p className="text-sm font-semibold text-blue-800">Resumo da Instalação:</p>
-                    <pre className="text-sm whitespace-pre-wrap">{selectedOp.data.resumo}</pre>
-                  </div>
-                )}
-
-                {/* Exibir todas as informações adicionais disponíveis */}
-                {Object.entries(selectedOp.data).filter(
-                  ([key]) => !['Cliente', 'Serviço', 'Modelo', 'Serial', 'Endereço', 'Observações', 'resumo'].includes(key)
-                ).length > 0 && (
-                  <div className="p-3 bg-gray-50 rounded-md">
-                    <p className="text-sm font-semibold">Informações Adicionais:</p>
-                    {Object.entries(selectedOp.data).filter(
-                      ([key]) => !['Cliente', 'Serviço', 'Modelo', 'Serial', 'Endereço', 'Observações', 'resumo'].includes(key)
-                    ).map(([key, value]) => (
-                      <div key={key} className="text-sm mt-1">
-                        <span className="font-medium">{key}:</span> {String(value)}
+                {/* Expanded content */}
+                {expandedOperations[operation.id] && (
+                  <div className="p-4 border-t border-gray-100">
+                    <div className="mb-4">
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Detalhes da Instalação</h4>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        {Object.entries(operation.data).map(([key, value]) => (
+                          <div key={key} className="flex space-x-2">
+                            <span className="font-medium">{key}:</span>
+                            <span className="text-gray-600">{String(value)}</span>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    </div>
+
+                    <div className="mb-4">
+                      <div className="flex items-center text-sm text-gray-500 mb-2">
+                        <User className="h-4 w-4 mr-1" />
+                        <span>Técnico: {operation.technician}</span>
+                      </div>
+                      <div className="flex items-center text-sm text-gray-500">
+                        <Clock className="h-4 w-4 mr-1" />
+                        <span>Criado em: {new Date(operation.createdAt).toLocaleString('pt-BR')}</span>
+                      </div>
+                    </div>
+
+                    {/* Feedback / Communication Section */}
+                    <div className="border-t border-gray-100 pt-4 mt-4">
+                      <h4 className="text-sm font-medium mb-2 flex items-center">
+                        <MessageSquare className="h-4 w-4 mr-1" />
+                        Comunicação com o Técnico
+                      </h4>
+                      
+                      {operation.feedback && (
+                        <div className="bg-blue-50 p-3 rounded mb-3">
+                          <p className="text-xs text-blue-600 mb-1">Enviado ao técnico:</p>
+                          <p className="text-sm">{operation.feedback}</p>
+                        </div>
+                      )}
+                      
+                      {operation.technicianResponse && (
+                        <div className="bg-green-50 p-3 rounded mb-3">
+                          <p className="text-xs text-green-600 mb-1">Resposta do técnico:</p>
+                          <p className="text-sm">{operation.technicianResponse}</p>
+                        </div>
+                      )}
+                      
+                      <div className="flex items-end gap-2 mt-3">
+                        <Textarea 
+                          placeholder="Enviar feedback ou fazer pergunta ao técnico..." 
+                          className="flex-1 text-sm"
+                          value={feedbackText[operation.id] || ''}
+                          onChange={(e) => handleFeedbackChange(operation.id, e.target.value)}
+                        />
+                        <Button 
+                          size="sm" 
+                          onClick={() => sendFeedback(operation.id)}
+                          className="bg-blue-600 hover:bg-blue-700"
+                        >
+                          <Send className="h-4 w-4 mr-1" />
+                          Enviar
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="border-t border-gray-100 pt-4 mt-4 flex justify-between">
+                      {operation.assignedOperator ? (
+                        <div className="text-sm">
+                          <span className="font-medium">Atribuído a:</span>
+                          <span className="ml-1">
+                            {operation.assignedOperator} {isAssignedToMe(operation) && '(você)'}
+                          </span>
+                        </div>
+                      ) : (
+                        <span></span>
+                      )}
+                      
+                      <div className="flex space-x-2">
+                        {!operation.assignedOperator && onClaimTask && (
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => onClaimTask(operation.id)}
+                          >
+                            Atribuir a mim
+                          </Button>
+                        )}
+                        
+                        {isAssignedToMe(operation) && operation.status === 'pendente' && (
+                          <Button 
+                            size="sm"
+                            variant="outline"
+                            className="bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100"
+                            onClick={() => startWorking(operation.id)}
+                          >
+                            <RefreshCcw className="h-3 w-3 mr-1" />
+                            Iniciar Provisionamento
+                          </Button>
+                        )}
+                        
+                        {isAssignedToMe(operation) && operation.status === 'iniciando_provisionamento' && (
+                          <Button 
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700"
+                            onClick={() => handleComplete(operation.id)}
+                          >
+                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                            Concluir
+                          </Button>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 )}
-
-                {selectedOp.feedback && (
-                  <div className="p-3 bg-blue-50 rounded-md border border-blue-100">
-                    <p className="text-sm font-semibold text-blue-800">Feedback enviado:</p>
-                    <p className="text-sm">{selectedOp.feedback}</p>
-                  </div>
-                )}
-
-                {selectedOp.assignedOperator && (
-                  <div className="p-3 bg-purple-50 rounded-md border border-purple-100">
-                    <p className="text-sm font-semibold text-purple-800">Chamado atribuído a:</p>
-                    <p className="text-sm">{selectedOp.assignedOperator}</p>
-                    <p className="text-xs text-gray-600 mt-1">
-                      {selectedOp.assignedAt ? 
-                        `Atribuído em: ${new Date(selectedOp.assignedAt).toLocaleString('pt-BR')}` :
-                        ''}
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={completionConfirmOpen} onOpenChange={setCompletionConfirmOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirmar Arquivamento</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <p>Tem certeza que deseja finalizar e arquivar este chamado?</p>
-            <p className="text-sm text-gray-500 mt-2">
-              Esta ação moverá o chamado para o histórico e ele não estará mais visível no painel de operações ativas.
-            </p>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCompletionConfirmOpen(false)}>Cancelar</Button>
-            <Button onClick={handleCompleteOperation} variant="destructive">Confirmar Arquivamento</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

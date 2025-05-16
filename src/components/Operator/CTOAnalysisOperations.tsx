@@ -1,268 +1,311 @@
 
 import React, { useState } from 'react';
-import { useOperations, CTOStatus } from '@/context/OperationContext';
-import { Textarea } from '@/components/ui/textarea';
+import { useOperations } from '@/context/OperationContext';
+import { useAuth } from '@/context/AuthContext';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
-import { 
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter
-} from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Checkbox } from '@/components/ui/checkbox';
+import { 
+  Clock, 
+  CheckCircle2, 
+  User, 
+  Send,
+  MessageSquare,
+  RefreshCcw,
+  Network
+} from 'lucide-react';
 
 interface CTOAnalysisOperationsProps {
   onClaimTask?: (operationId: string) => void;
 }
 
-const CTOAnalysisOperations: React.FC<CTOAnalysisOperationsProps> = ({ onClaimTask }) => {
-  const { operations, updateOperationStatus, updateOperationFeedback } = useOperations();
-  const [selectedOperation, setSelectedOperation] = useState<string | null>(null);
-  const [feedback, setFeedback] = useState('');
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [availablePorts, setAvailablePorts] = useState<Record<string, boolean>>({});
-  const [portsDialogOpen, setPortsDialogOpen] = useState(false);
-
+const CTOAnalysisOperations = ({ onClaimTask }: CTOAnalysisOperationsProps) => {
+  const { user } = useAuth();
+  const { operations, updateOperationStatus, updateOperationFeedback, completeOperation } = useOperations();
+  
+  // Filter to show only CTO operations
   const ctoOperations = operations.filter(op => op.type === 'cto');
-
-  const handleStatusChange = (id: string, status: CTOStatus) => {
-    updateOperationStatus(id, status);
-    toast.success(`Status atualizado para ${status.replace('_', ' ')}`);
+  
+  // State for handling feedback text inputs
+  const [feedbackText, setFeedbackText] = useState<Record<string, string>>({});
+  
+  // State to track expanded operations
+  const [expandedOperations, setExpandedOperations] = useState<Record<string, boolean>>({});
+  
+  // State to track operations in working state
+  const [workingOperations, setWorkingOperations] = useState<Record<string, boolean>>({});
+  
+  // Toggle expansion of an operation card
+  const toggleExpand = (operationId: string) => {
+    setExpandedOperations(prev => ({
+      ...prev,
+      [operationId]: !prev[operationId]
+    }));
   };
-
-  const handleSendFeedback = (id: string) => {
-    if (!feedback.trim()) {
-      toast.error("Por favor, insira um feedback antes de enviar");
+  
+  // Update feedback text for an operation
+  const handleFeedbackChange = (operationId: string, text: string) => {
+    setFeedbackText(prev => ({
+      ...prev,
+      [operationId]: text
+    }));
+  };
+  
+  // Send feedback to technician
+  const sendFeedback = (operationId: string) => {
+    const feedback = feedbackText[operationId];
+    if (!feedback || feedback.trim() === '') {
+      toast.error('Por favor, escreva um feedback antes de enviar');
       return;
     }
     
-    updateOperationFeedback(id, feedback);
-    setFeedback('');
-    setDialogOpen(false);
-    toast.success("Feedback enviado com sucesso");
-  };
-
-  const openFeedbackDialog = (id: string) => {
-    setSelectedOperation(id);
-    // Get any existing feedback
-    const operation = operations.find(op => op.id === id);
-    if (operation && operation.feedback) {
-      setFeedback(operation.feedback);
-    } else {
-      setFeedback('');
-    }
-    setDialogOpen(true);
-  };
-
-  const openPortsDialog = (id: string) => {
-    setSelectedOperation(id);
-    // Initialize ports from operation data
-    const operation = operations.find(op => op.id === id);
-    if (operation && operation.data.portas) {
-      const initialPorts: Record<string, boolean> = {};
-      const portNumbers = Array.from({ length: operation.data.portas || 8 }, (_, i) => i + 1);
-      
-      // Initialize each port as available
-      portNumbers.forEach(portNumber => {
-        initialPorts[`port-${portNumber}`] = false;
-      });
-      
-      setAvailablePorts(initialPorts);
-    }
-    setPortsDialogOpen(true);
-  };
-
-  const handleSaveAvailablePorts = () => {
-    if (!selectedOperation) return;
+    updateOperationFeedback(operationId, feedback);
+    toast.success('Feedback enviado com sucesso!');
     
-    // Update the operation with the available ports info
-    const selectedOp = operations.find(op => op.id === selectedOperation);
-    if (selectedOp) {
-      const availablePortsList = Object.entries(availablePorts)
-        .filter(([_, isAvailable]) => isAvailable)
-        .map(([portKey]) => portKey.replace('port-', ''))
-        .join(', ');
-      
-      const updatedFeedback = `Portas disponíveis: ${availablePortsList || 'Nenhuma'}`;
-      updateOperationFeedback(selectedOperation, updatedFeedback);
-      updateOperationStatus(selectedOperation, 'verificacao_finalizada');
-      setPortsDialogOpen(false);
-      toast.success("Verificação de portas concluída com sucesso");
-    }
+    // Clear the feedback text
+    setFeedbackText(prev => ({
+      ...prev,
+      [operationId]: ''
+    }));
   };
-
-  const formatDate = (date: Date) => {
-    return new Date(date).toLocaleString('pt-BR');
+  
+  // Start working on an operation
+  const startWorking = (operationId: string) => {
+    updateOperationStatus(operationId, 'verificando');
+    setWorkingOperations(prev => ({
+      ...prev,
+      [operationId]: true
+    }));
+    toast.info('Verificação iniciada');
   };
-
-  const getStatusBadgeClass = (status: string) => {
-    switch (status) {
-      case 'pendente':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'verificando':
-        return 'bg-blue-100 text-blue-800';
-      case 'verificacao_finalizada':
-        return 'bg-green-100 text-green-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
+  
+  // Complete an operation
+  const handleComplete = (operationId: string) => {
+    if (!user) return;
+    
+    completeOperation(operationId, user.name);
+    toast.success('Operação concluída com sucesso!');
+    
+    setWorkingOperations(prev => {
+      const newState = { ...prev };
+      delete newState[operationId];
+      return newState;
+    });
   };
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'pendente':
-        return 'Pendente';
-      case 'verificando':
-        return 'Verificando';
-      case 'verificacao_finalizada':
-        return 'Verificação Finalizada';
-      default:
-        return status;
-    }
+  
+  // Check if current user is assigned to this operation
+  const isAssignedToMe = (operation: any) => {
+    return operation.assignedOperator === user?.name || operation.assignedOperator === user?.username;
   };
 
   return (
-    <div>
-      <h2 className="text-xl font-semibold mb-6">Análise de CTOs</h2>
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-xl font-semibold">Análises de CTOs</h2>
+        <Badge variant="outline" className="bg-purple-100 text-purple-800">
+          {ctoOperations.length} CTO(s)
+        </Badge>
+      </div>
       
       {ctoOperations.length === 0 ? (
         <div className="text-center py-12 bg-gray-50 rounded-lg">
-          <p className="text-gray-500">Nenhuma análise de CTO pendente.</p>
+          <p className="text-gray-500">Não há análises de CTOs pendentes</p>
         </div>
       ) : (
-        <div className="overflow-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Data</TableHead>
-                <TableHead>Técnico</TableHead>
-                <TableHead>CTO</TableHead>
-                <TableHead>Localização</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Portas</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {ctoOperations.map((op) => (
-                <TableRow key={op.id}>
-                  <TableCell>{formatDate(op.createdAt)}</TableCell>
-                  <TableCell>{op.technician}</TableCell>
-                  <TableCell>{op.data.cto || 'N/A'}</TableCell>
-                  <TableCell>{op.data.bairro ? `${op.data.bairro}, ${op.data.rua || ''}` : 'N/A'}</TableCell>
-                  <TableCell>{op.data.tipo || 'N/A'}</TableCell>
-                  <TableCell>{op.data.portas || 'N/A'}</TableCell>
-                  <TableCell>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadgeClass(op.status)}`}>
-                      {getStatusText(op.status)}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex space-x-2">
-                      {onClaimTask && !op.assignedOperator && (
-                        <Button 
-                          variant="secondary" 
-                          size="sm"
-                          onClick={() => onClaimTask(op.id)}
-                        >
-                          Assumir
-                        </Button>
-                      )}
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => handleStatusChange(op.id, 'verificando')}
-                        disabled={op.status !== 'pendente'}
-                      >
-                        Verificar
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => openPortsDialog(op.id)}
-                        disabled={op.status !== 'verificando'}
-                      >
-                        Portas
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => openFeedbackDialog(op.id)}
-                      >
-                        Feedback
-                      </Button>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {ctoOperations.map((operation) => (
+            <Card 
+              key={operation.id} 
+              className={`overflow-hidden border ${
+                operation.status === 'pendente' 
+                  ? 'border-yellow-200' 
+                  : operation.status === 'verificando'
+                    ? 'border-purple-300'
+                    : 'border-green-300'
+              } ${expandedOperations[operation.id] ? 'ring-2 ring-purple-400' : ''}`}
+            >
+              <CardContent className="p-0">
+                {/* Header */}
+                <div 
+                  className={`p-4 cursor-pointer ${
+                    operation.status === 'pendente' 
+                      ? 'bg-yellow-50' 
+                      : operation.status === 'verificando'
+                        ? 'bg-purple-50'
+                        : 'bg-green-50'
+                  }`}
+                  onClick={() => toggleExpand(operation.id)}
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="font-medium flex items-center">
+                        <Network className="h-4 w-4 mr-1" />
+                        CTO: {operation.data.cto || 'Não identificada'}
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        {operation.data.bairro}, {operation.data.rua}
+                      </p>
                     </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                    <Badge variant={
+                      operation.status === 'pendente' 
+                        ? 'outline' 
+                        : operation.status === 'verificando'
+                          ? 'secondary'
+                          : 'success'
+                    }>
+                      {operation.status === 'pendente' 
+                        ? 'Pendente' 
+                        : operation.status === 'verificando'
+                          ? 'Verificando'
+                          : 'Finalizado'
+                      }
+                    </Badge>
+                  </div>
+                </div>
+
+                {/* Expanded content */}
+                {expandedOperations[operation.id] && (
+                  <div className="p-4 border-t border-gray-100">
+                    <div className="mb-4">
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Detalhes da CTO</h4>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        {Object.entries(operation.data).map(([key, value]) => {
+                          // Check if the value is an object (for portas data)
+                          if (key === 'portas' && typeof value === 'object') {
+                            return null; // We'll display ports separately
+                          }
+                          
+                          return (
+                            <div key={key} className="flex space-x-2">
+                              <span className="font-medium">{key}:</span>
+                              <span className="text-gray-600">{String(value)}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      
+                      {/* Display port information if available */}
+                      {operation.data.portas && (
+                        <div className="mt-3">
+                          <h5 className="text-sm font-medium mb-1">Informações das Portas:</h5>
+                          <div className="grid grid-cols-2 gap-1 text-xs bg-gray-50 p-2 rounded">
+                            {Array.isArray(operation.data.portas) && operation.data.portas.map((porta: any, index: number) => (
+                              <div key={index} className="flex space-x-1">
+                                <span className="font-medium">Porta {index + 1}:</span>
+                                <span className="text-gray-600">{porta || 'Não preenchido'}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="mb-4">
+                      <div className="flex items-center text-sm text-gray-500 mb-2">
+                        <User className="h-4 w-4 mr-1" />
+                        <span>Técnico: {operation.technician}</span>
+                      </div>
+                      <div className="flex items-center text-sm text-gray-500">
+                        <Clock className="h-4 w-4 mr-1" />
+                        <span>Criado em: {new Date(operation.createdAt).toLocaleString('pt-BR')}</span>
+                      </div>
+                    </div>
+
+                    {/* Feedback / Communication Section */}
+                    <div className="border-t border-gray-100 pt-4 mt-4">
+                      <h4 className="text-sm font-medium mb-2 flex items-center">
+                        <MessageSquare className="h-4 w-4 mr-1" />
+                        Comunicação com o Técnico
+                      </h4>
+                      
+                      {operation.feedback && (
+                        <div className="bg-blue-50 p-3 rounded mb-3">
+                          <p className="text-xs text-blue-600 mb-1">Enviado ao técnico:</p>
+                          <p className="text-sm">{operation.feedback}</p>
+                        </div>
+                      )}
+                      
+                      {operation.technicianResponse && (
+                        <div className="bg-green-50 p-3 rounded mb-3">
+                          <p className="text-xs text-green-600 mb-1">Resposta do técnico:</p>
+                          <p className="text-sm">{operation.technicianResponse}</p>
+                        </div>
+                      )}
+                      
+                      <div className="flex items-end gap-2 mt-3">
+                        <Textarea 
+                          placeholder="Enviar feedback ou fazer pergunta ao técnico..." 
+                          className="flex-1 text-sm"
+                          value={feedbackText[operation.id] || ''}
+                          onChange={(e) => handleFeedbackChange(operation.id, e.target.value)}
+                        />
+                        <Button 
+                          size="sm" 
+                          onClick={() => sendFeedback(operation.id)}
+                          className="bg-blue-600 hover:bg-blue-700"
+                        >
+                          <Send className="h-4 w-4 mr-1" />
+                          Enviar
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="border-t border-gray-100 pt-4 mt-4 flex justify-between">
+                      {operation.assignedOperator ? (
+                        <div className="text-sm">
+                          <span className="font-medium">Atribuído a:</span>
+                          <span className="ml-1">
+                            {operation.assignedOperator} {isAssignedToMe(operation) && '(você)'}
+                          </span>
+                        </div>
+                      ) : (
+                        <span></span>
+                      )}
+                      
+                      <div className="flex space-x-2">
+                        {!operation.assignedOperator && onClaimTask && (
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => onClaimTask(operation.id)}
+                          >
+                            Atribuir a mim
+                          </Button>
+                        )}
+                        
+                        {isAssignedToMe(operation) && operation.status === 'pendente' && (
+                          <Button 
+                            size="sm"
+                            variant="outline"
+                            className="bg-purple-50 text-purple-600 border-purple-200 hover:bg-purple-100"
+                            onClick={() => startWorking(operation.id)}
+                          >
+                            <RefreshCcw className="h-3 w-3 mr-1" />
+                            Iniciar Verificação
+                          </Button>
+                        )}
+                        
+                        {isAssignedToMe(operation) && operation.status === 'verificando' && (
+                          <Button 
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700"
+                            onClick={() => handleComplete(operation.id)}
+                          >
+                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                            Concluir
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ))}
         </div>
       )}
-
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Enviar Feedback para o Técnico</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <Textarea
-              placeholder="Insira informações adicionais ou correções sobre esta CTO..."
-              value={feedback}
-              onChange={(e) => setFeedback(e.target.value)}
-              className="min-h-[150px]"
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={() => selectedOperation && handleSendFeedback(selectedOperation)}>Enviar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={portsDialogOpen} onOpenChange={setPortsDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Verificar Portas Disponíveis</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <p className="text-sm text-gray-500 mb-4">Selecione as portas disponíveis para uso:</p>
-            <div className="grid grid-cols-4 gap-4">
-              {Object.keys(availablePorts).map((portKey) => {
-                const portNumber = portKey.replace('port-', '');
-                return (
-                  <div key={portKey} className="flex items-center space-x-2">
-                    <Checkbox 
-                      id={portKey}
-                      checked={availablePorts[portKey]}
-                      onCheckedChange={(checked) => {
-                        setAvailablePorts(prev => ({
-                          ...prev,
-                          [portKey]: checked === true
-                        }));
-                      }}
-                    />
-                    <label 
-                      htmlFor={portKey}
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                    >
-                      Porta {portNumber}
-                    </label>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setPortsDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSaveAvailablePorts}>Salvar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };

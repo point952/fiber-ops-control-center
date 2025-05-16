@@ -12,7 +12,7 @@ import Footer from '@/components/Footer';
 import { useAuth } from '@/context/AuthContext';
 import { useOperations } from '@/context/OperationContext';
 import { Badge } from '@/components/ui/badge';
-import { MessageSquare, Bell, History } from 'lucide-react';
+import { MessageSquare, Bell, History, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
@@ -21,6 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 
 type FormType = 'installation' | 'cto' | 'rma' | null;
 
@@ -28,10 +29,12 @@ const Index = () => {
   const [activeForm, setActiveForm] = useState<FormType>(null);
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const { operations, getUserOperations } = useOperations();
+  const { operations, getUserOperations, updateTechnicianResponse } = useOperations();
   const isMobile = useIsMobile();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [responses, setResponses] = useState<Record<string, string>>({});
+  const [selectedOperation, setSelectedOperation] = useState<string | null>(null);
   
   // Get operations specific to the current technician
   const userOperations = user ? getUserOperations(user.id) : [];
@@ -59,6 +62,29 @@ const Index = () => {
 
   const handleBackToMenu = () => {
     setActiveForm(null);
+  };
+
+  // Função para lidar com a resposta do técnico
+  const handleResponseChange = (operationId: string, value: string) => {
+    setResponses(prev => ({ ...prev, [operationId]: value }));
+  };
+
+  // Função para enviar a resposta do técnico
+  const handleSendResponse = (operationId: string) => {
+    const response = responses[operationId];
+    if (!response || response.trim() === '') {
+      toast.error('Por favor, escreva uma resposta antes de enviar.');
+      return;
+    }
+
+    updateTechnicianResponse(operationId, response);
+    toast.success('Resposta enviada com sucesso!');
+    
+    // Limpar o campo de resposta
+    setResponses(prev => ({ ...prev, [operationId]: '' }));
+    
+    // Opcional: fechar o card expandido
+    setSelectedOperation(null);
   };
 
   const renderContent = () => {
@@ -215,7 +241,11 @@ const Index = () => {
           <div className="space-y-4 max-h-[60vh] overflow-y-auto">
             {operationsWithFeedback.length > 0 ? (
               operationsWithFeedback.map((op) => (
-                <Card key={op.id} className="bg-blue-50 border-blue-200">
+                <Card 
+                  key={op.id} 
+                  className={`bg-blue-50 border-blue-200 ${selectedOperation === op.id ? 'ring-2 ring-blue-400' : ''}`}
+                  onClick={() => setSelectedOperation(selectedOperation === op.id ? null : op.id)}
+                >
                   <CardContent className="p-4">
                     <div className="flex justify-between items-start mb-2">
                       <h3 className="font-medium">
@@ -229,6 +259,7 @@ const Index = () => {
                         {op.status.replace(/_/g, ' ')}
                       </Badge>
                     </div>
+                    
                     <p className="text-sm text-gray-600 mb-3">
                       {op.type === 'installation' 
                         ? `Cliente: ${op.data.Cliente || 'N/A'}`
@@ -236,12 +267,47 @@ const Index = () => {
                           ? `CTO: ${op.data.cto || 'N/A'}`
                           : `Serial: ${op.data.serial || 'N/A'}`}
                     </p>
+                    
                     <div className="bg-white p-3 rounded border border-blue-200 mt-2">
                       <p className="text-sm font-medium mb-1 text-blue-800">
                         Feedback do operador:
                       </p>
                       <p className="text-sm">{op.feedback}</p>
                     </div>
+                    
+                    {op.technicianResponse && (
+                      <div className="bg-green-50 p-3 rounded border border-green-200 mt-2">
+                        <p className="text-sm font-medium mb-1 text-green-800">
+                          Sua resposta:
+                        </p>
+                        <p className="text-sm">{op.technicianResponse}</p>
+                      </div>
+                    )}
+                    
+                    {selectedOperation === op.id && (
+                      <div className="mt-4">
+                        <p className="text-sm font-medium mb-2">
+                          Enviar resposta:
+                        </p>
+                        <div className="flex items-end gap-2">
+                          <Textarea 
+                            placeholder="Escreva sua resposta ao operador..."
+                            className="flex-1"
+                            value={responses[op.id] || ''}
+                            onChange={(e) => handleResponseChange(op.id, e.target.value)}
+                          />
+                          <Button 
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                            onClick={() => handleSendResponse(op.id)}
+                          >
+                            <Send className="h-4 w-4 mr-1" />
+                            Enviar
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                    
                     {op.assignedOperator && (
                       <div className="mt-3 text-sm text-blue-600">
                         Operador responsável: {op.assignedOperator}
