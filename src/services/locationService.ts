@@ -20,15 +20,26 @@ export const getAddressFromCoordinates = async (latitude: number, longitude: num
     if (!response.ok) throw new Error('Falha ao obter endereço');
     
     const data = await response.json();
+    console.log("Address data received:", data);
     
     // Extract address information
     const address = data.address || {};
     
-    // Try to find neighborhood (neighbourhood, suburb or district)
-    const bairro = address.neighbourhood || address.suburb || address.district || '';
+    // Try to find neighborhood (neighbourhood, suburb, district, or town/city as fallbacks)
+    const bairro = address.neighbourhood || 
+                   address.suburb || 
+                   address.district || 
+                   address.city_district || 
+                   address.town ||
+                   address.city || 
+                   '';
     
-    // Try to find street (road, street or path)
-    const rua = address.road || address.street || address.path || '';
+    // Try to find street (road, street, path, or addr:street as fallbacks)
+    const rua = address.road || 
+                address.street || 
+                address.path || 
+                address["addr:street"] ||
+                '';
     
     return { bairro, rua };
   } catch (error) {
@@ -47,6 +58,10 @@ export const getCurrentLocation = (): Promise<GeolocationPosition> => {
       return;
     }
     
-    navigator.geolocation.getCurrentPosition(resolve, reject);
+    navigator.geolocation.getCurrentPosition(resolve, reject, {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0
+    });
   });
 };

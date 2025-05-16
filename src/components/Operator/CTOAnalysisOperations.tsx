@@ -13,7 +13,9 @@ import {
   Send,
   MessageSquare,
   RefreshCcw,
-  Network
+  Network,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 
 interface CTOAnalysisOperationsProps {
@@ -33,6 +35,9 @@ const CTOAnalysisOperations = ({ onClaimTask }: CTOAnalysisOperationsProps) => {
   // State to track expanded operations
   const [expandedOperations, setExpandedOperations] = useState<Record<string, boolean>>({});
   
+  // State to track expanded feedback forms
+  const [expandedFeedbackForms, setExpandedFeedbackForms] = useState<Record<string, boolean>>({});
+  
   // State to track operations in working state
   const [workingOperations, setWorkingOperations] = useState<Record<string, boolean>>({});
   
@@ -41,6 +46,14 @@ const CTOAnalysisOperations = ({ onClaimTask }: CTOAnalysisOperationsProps) => {
     setExpandedOperations(prev => ({
       ...prev,
       [operationId]: !prev[operationId]
+    }));
+  };
+  
+  // Toggle expansion of feedback form
+  const toggleFeedbackForm = (operationId: string, state?: boolean) => {
+    setExpandedFeedbackForms(prev => ({
+      ...prev,
+      [operationId]: state !== undefined ? state : !prev[operationId]
     }));
   };
   
@@ -68,6 +81,9 @@ const CTOAnalysisOperations = ({ onClaimTask }: CTOAnalysisOperationsProps) => {
       ...prev,
       [operationId]: ''
     }));
+    
+    // Close the feedback form
+    toggleFeedbackForm(operationId, false);
   };
   
   // Start working on an operation
@@ -97,6 +113,66 @@ const CTOAnalysisOperations = ({ onClaimTask }: CTOAnalysisOperationsProps) => {
   // Check if current user is assigned to this operation
   const isAssignedToMe = (operation: any) => {
     return operation.assignedOperator === user?.name || operation.assignedOperator === user?.username;
+  };
+
+  // Function to display CTO data in a more organized way
+  const renderCTOData = (data: any) => {
+    // Define fields that should be displayed prominently
+    const mainFields = ['cto', 'tipoSplitter', 'bairro', 'rua', 'coordenadas'];
+    
+    // Define fields that should be skipped in the detailed view
+    const skipFields = ['portas'];
+    
+    return (
+      <>
+        {/* Main data fields */}
+        <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+          {mainFields.map(field => {
+            if (data[field]) {
+              return (
+                <div key={field} className="flex space-x-2">
+                  <span className="font-medium capitalize">{field === 'tipoSplitter' ? 'Tipo de Splitter' : field}:</span>
+                  <span className="text-gray-600">{data[field]}</span>
+                </div>
+              );
+            }
+            return null;
+          })}
+        </div>
+        
+        {/* Other fields */}
+        <div className="grid grid-cols-2 gap-2 text-sm">
+          {Object.entries(data).map(([key, value]) => {
+            // Skip main fields that were already displayed and fields in the skip list
+            if (mainFields.includes(key) || skipFields.includes(key)) {
+              return null;
+            }
+            
+            return (
+              <div key={key} className="flex space-x-2">
+                <span className="font-medium capitalize">{key}:</span>
+                <span className="text-gray-600">{String(value)}</span>
+              </div>
+            );
+          })}
+        </div>
+        
+        {/* Display port information if available */}
+        {data.portas && (
+          <div className="mt-3">
+            <h5 className="text-sm font-medium mb-1">Informações das Portas:</h5>
+            <div className="grid grid-cols-2 gap-1 text-xs bg-gray-50 p-2 rounded">
+              {Array.isArray(data.portas) && data.portas.map((porta: any, index: number) => (
+                <div key={index} className="flex space-x-1">
+                  <span className="font-medium">Porta {index + 1}:</span>
+                  <span className="text-gray-600">{porta || 'Não preenchido'}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </>
+    );
   };
 
   return (
@@ -134,19 +210,19 @@ const CTOAnalysisOperations = ({ onClaimTask }: CTOAnalysisOperationsProps) => {
                       : operation.status === 'verificando'
                         ? 'bg-purple-50'
                         : 'bg-green-50'
-                  }`}
+                  } flex justify-between items-center`}
                   onClick={() => toggleExpand(operation.id)}
                 >
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="font-medium flex items-center">
-                        <Network className="h-4 w-4 mr-1" />
-                        CTO: {operation.data.cto || 'Não identificada'}
-                      </h3>
-                      <p className="text-sm text-gray-600">
-                        {operation.data.bairro}, {operation.data.rua}
-                      </p>
-                    </div>
+                  <div>
+                    <h3 className="font-medium flex items-center">
+                      <Network className="h-4 w-4 mr-1" />
+                      CTO: {operation.data.cto || 'Não identificada'}
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      {operation.data.bairro}, {operation.data.rua}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
                     <Badge variant={
                       operation.status === 'pendente' 
                         ? 'outline' 
@@ -161,6 +237,10 @@ const CTOAnalysisOperations = ({ onClaimTask }: CTOAnalysisOperationsProps) => {
                           : 'Finalizado'
                       }
                     </Badge>
+                    {expandedOperations[operation.id] ? 
+                      <ChevronUp className="h-4 w-4" /> : 
+                      <ChevronDown className="h-4 w-4" />
+                    }
                   </div>
                 </div>
 
@@ -169,36 +249,7 @@ const CTOAnalysisOperations = ({ onClaimTask }: CTOAnalysisOperationsProps) => {
                   <div className="p-4 border-t border-gray-100">
                     <div className="mb-4">
                       <h4 className="text-sm font-medium text-gray-700 mb-2">Detalhes da CTO</h4>
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        {Object.entries(operation.data).map(([key, value]) => {
-                          // Check if the value is an object (for portas data)
-                          if (key === 'portas' && typeof value === 'object') {
-                            return null; // We'll display ports separately
-                          }
-                          
-                          return (
-                            <div key={key} className="flex space-x-2">
-                              <span className="font-medium">{key}:</span>
-                              <span className="text-gray-600">{String(value)}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                      
-                      {/* Display port information if available */}
-                      {operation.data.portas && (
-                        <div className="mt-3">
-                          <h5 className="text-sm font-medium mb-1">Informações das Portas:</h5>
-                          <div className="grid grid-cols-2 gap-1 text-xs bg-gray-50 p-2 rounded">
-                            {Array.isArray(operation.data.portas) && operation.data.portas.map((porta: any, index: number) => (
-                              <div key={index} className="flex space-x-1">
-                                <span className="font-medium">Porta {index + 1}:</span>
-                                <span className="text-gray-600">{porta || 'Não preenchido'}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                      {renderCTOData(operation.data)}
                     </div>
 
                     <div className="mb-4">
@@ -233,21 +284,55 @@ const CTOAnalysisOperations = ({ onClaimTask }: CTOAnalysisOperationsProps) => {
                         </div>
                       )}
                       
-                      <div className="flex items-end gap-2 mt-3">
-                        <Textarea 
-                          placeholder="Enviar feedback ou fazer pergunta ao técnico..." 
-                          className="flex-1 text-sm"
-                          value={feedbackText[operation.id] || ''}
-                          onChange={(e) => handleFeedbackChange(operation.id, e.target.value)}
-                        />
-                        <Button 
-                          size="sm" 
-                          onClick={() => sendFeedback(operation.id)}
-                          className="bg-blue-600 hover:bg-blue-700"
-                        >
-                          <Send className="h-4 w-4 mr-1" />
-                          Enviar
-                        </Button>
+                      <div className="mt-3">
+                        {expandedFeedbackForms[operation.id] ? (
+                          <div className="flex flex-col gap-2">
+                            <Textarea 
+                              placeholder="Enviar feedback ou fazer pergunta ao técnico..." 
+                              className="w-full text-sm min-h-[80px]"
+                              value={feedbackText[operation.id] || ''}
+                              onChange={(e) => handleFeedbackChange(operation.id, e.target.value)}
+                              autoFocus
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleFeedbackForm(operation.id, false);
+                                }}
+                              >
+                                Cancelar
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  sendFeedback(operation.id);
+                                }}
+                                className="bg-blue-600 hover:bg-blue-700"
+                              >
+                                <Send className="h-4 w-4 mr-1" />
+                                Enviar
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            className="w-full"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleFeedbackForm(operation.id, true);
+                            }}
+                          >
+                            <MessageSquare className="h-4 w-4 mr-1" />
+                            Escrever Mensagem
+                          </Button>
+                        )}
                       </div>
                     </div>
 
@@ -268,7 +353,10 @@ const CTOAnalysisOperations = ({ onClaimTask }: CTOAnalysisOperationsProps) => {
                           <Button 
                             size="sm" 
                             variant="outline"
-                            onClick={() => onClaimTask(operation.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onClaimTask(operation.id);
+                            }}
                           >
                             Atribuir a mim
                           </Button>
@@ -279,7 +367,10 @@ const CTOAnalysisOperations = ({ onClaimTask }: CTOAnalysisOperationsProps) => {
                             size="sm"
                             variant="outline"
                             className="bg-purple-50 text-purple-600 border-purple-200 hover:bg-purple-100"
-                            onClick={() => startWorking(operation.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              startWorking(operation.id);
+                            }}
                           >
                             <RefreshCcw className="h-3 w-3 mr-1" />
                             Iniciar Verificação
@@ -290,7 +381,10 @@ const CTOAnalysisOperations = ({ onClaimTask }: CTOAnalysisOperationsProps) => {
                           <Button 
                             size="sm"
                             className="bg-green-600 hover:bg-green-700"
-                            onClick={() => handleComplete(operation.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleComplete(operation.id);
+                            }}
                           >
                             <CheckCircle2 className="h-3 w-3 mr-1" />
                             Concluir

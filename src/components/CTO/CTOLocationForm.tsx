@@ -41,13 +41,26 @@ const CTOLocationForm: React.FC<CTOLocationFormProps> = ({
       onCoordenadasChange(coordString);
       
       // Get address from coordinates
-      const { bairro, rua } = await getAddressFromCoordinates(latitude, longitude);
+      const { bairro: neighborhoodFromCoords, rua: streetFromCoords } = await getAddressFromCoordinates(latitude, longitude);
       
       // Update bairro and rua fields if found
-      if (bairro) onBairroChange(bairro);
-      if (rua) onRuaChange(rua);
+      if (neighborhoodFromCoords) {
+        onBairroChange(neighborhoodFromCoords);
+      } else {
+        toast.warning("Bairro não encontrado. Por favor, preencha manualmente.");
+      }
       
-      toast.success("Localização obtida com sucesso!");
+      if (streetFromCoords) {
+        onRuaChange(streetFromCoords);
+      } else {
+        toast.warning("Rua não encontrada. Por favor, preencha manualmente.");
+      }
+      
+      if (neighborhoodFromCoords && streetFromCoords) {
+        toast.success("Localização obtida com sucesso!");
+      } else {
+        toast.info("Localização parcialmente obtida. Alguns campos precisam ser preenchidos manualmente.");
+      }
     } catch (error) {
       toast.error("Não foi possível obter sua localização");
       console.error('Erro de geolocalização:', error);

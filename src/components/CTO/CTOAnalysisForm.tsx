@@ -6,6 +6,9 @@ import CTOSplitterTypeSelector from './CTOSplitterTypeSelector';
 import CTOLocationForm from './CTOLocationForm';
 import CTOPortsForm from './CTOPortsForm';
 import TableGenerator from '../TableGenerator';
+import { useOperations } from '@/context/OperationContext';
+import { useAuth } from '@/context/AuthContext';
+import { toast } from "sonner";
 
 interface FormData {
   tipoSplitter: '1/8' | '1/16' | '';
@@ -13,19 +16,25 @@ interface FormData {
   rua: string;
   coordenadas: string;
   portas: string[];
+  cto?: string; // Adding optional CTO identifier field
 }
 
 const CTOAnalysisForm: React.FC<{ onBack: () => void }> = ({ onBack }) => {
+  const { addOperation } = useOperations();
+  const { user } = useAuth();
+  
   const [formData, setFormData] = useState<FormData>({
     tipoSplitter: '',
     bairro: '',
     rua: '',
     coordenadas: '',
     portas: Array(16).fill(''),
+    cto: '', // Initialize CTO field
   });
   
   const [showTable, setShowTable] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<keyof FormData | 'portaEspecifica', string>>>({});
+  const [submitting, setSubmitting] = useState(false);
 
   const handleChange = <K extends keyof FormData>(name: K, value: FormData[K]) => {
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -74,6 +83,47 @@ const CTOAnalysisForm: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     }
   };
 
+  const submitAnalysis = () => {
+    if (!user) {
+      toast.error("Você precisa estar logado para enviar análises");
+      return;
+    }
+    
+    setSubmitting(true);
+    
+    try {
+      // Format the data for the operation
+      const operationData = {
+        ...formData,
+        portas: formData.portas.slice(0, formData.tipoSplitter === '1/8' ? 8 : 16),
+        createdAt: new Date().toISOString()
+      };
+      
+      // Add the operation to the context
+      addOperation('cto', operationData, user.name, user.id);
+      
+      toast.success("Análise de CTO enviada com sucesso!");
+      
+      // Reset the form after successful submission
+      setFormData({
+        tipoSplitter: '',
+        bairro: '',
+        rua: '',
+        coordenadas: '',
+        portas: Array(16).fill(''),
+        cto: '',
+      });
+      
+      // Go back to the main menu
+      onBack();
+    } catch (error) {
+      console.error("Erro ao enviar análise:", error);
+      toast.error("Erro ao enviar análise. Tente novamente.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const portasParaExibir = formData.tipoSplitter === '1/8' ? 8 : 16;
 
   return (
@@ -92,6 +142,23 @@ const CTOAnalysisForm: React.FC<{ onBack: () => void }> = ({ onBack }) => {
         <Card>
           <CardContent className="pt-6">
             <form onSubmit={handleSubmit} className="space-y-4">
+              {/* CTO Identifier field */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label htmlFor="cto" className="text-sm font-medium">
+                    Identificação da CTO
+                  </label>
+                  <input
+                    id="cto"
+                    value={formData.cto}
+                    onChange={(e) => handleChange('cto', e.target.value)}
+                    placeholder="Ex: CTO-123"
+                    className="w-full p-2 border rounded-md"
+                  />
+                </div>
+                <div></div>
+              </div>
+              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Tipo de Splitter */}
                 <CTOSplitterTypeSelector
@@ -143,6 +210,7 @@ const CTOAnalysisForm: React.FC<{ onBack: () => void }> = ({ onBack }) => {
         <div className="space-y-4">
           <TableGenerator 
             formData={{
+              'CTO': formData.cto || 'Não identificada',
               'Tipo de Splitter': formData.tipoSplitter,
               'Bairro': formData.bairro,
               'Rua': formData.rua,
@@ -162,9 +230,18 @@ const CTOAnalysisForm: React.FC<{ onBack: () => void }> = ({ onBack }) => {
             <Button variant="outline" onClick={() => setShowTable(false)}>
               Voltar ao Formulário
             </Button>
-            <Button variant="outline" onClick={onBack}>
-              Voltar ao Menu Principal
-            </Button>
+            <div className="space-x-2">
+              <Button variant="outline" onClick={onBack}>
+                Voltar ao Menu Principal
+              </Button>
+              <Button 
+                onClick={submitAnalysis}
+                disabled={submitting}
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                {submitting ? "Enviando..." : "Enviar para Análise"}
+              </Button>
+            </div>
           </div>
         </div>
       )}
