@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { useOperations } from '@/context/OperationContext';
+import { useOperations } from '@/context/operations/OperationContext';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import MainMenu from '@/components/MainMenu';
@@ -25,6 +25,16 @@ const Index = () => {
     return null;
   }
   
+  const handleMenuSelect = (option: string) => {
+    if (option === 'logout') {
+      logout();
+      navigate('/login');
+    } else if (option === 'profile') {
+      // Handle profile option
+      console.log("Profile selected");
+    }
+  };
+  
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-gray-50 to-gray-100">
       <Header />
@@ -35,7 +45,7 @@ const Index = () => {
             <p className="text-gray-600">Bem-vindo, {user.name}</p>
           </div>
           
-          <MainMenu />
+          <MainMenu onSelect={handleMenuSelect} />
         </div>
         
         <div className="bg-white rounded-lg shadow-md p-6">

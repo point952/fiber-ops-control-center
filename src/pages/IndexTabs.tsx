@@ -26,6 +26,12 @@ const IndexTabs: React.FC<IndexTabsProps> = ({
   pendingCTOs,
   pendingRMAs,
 }) => {
+  // Dummy onBack function for components that require it
+  const handleBack = () => {
+    // This is just a placeholder since we're in the main tab view
+    console.log("Back action not applicable in main view");
+  };
+  
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
       <TabsList className="grid grid-cols-4 w-full">
@@ -58,13 +64,13 @@ const IndexTabs: React.FC<IndexTabsProps> = ({
         </TabsTrigger>
       </TabsList>
       <TabsContent value="installation" className="mt-6">
-        <InstallationForm />
+        <InstallationForm onBack={handleBack} />
       </TabsContent>
       <TabsContent value="cto" className="mt-6">
-        <CTOAnalysisForm />
+        <CTOAnalysisForm onBack={handleBack} />
       </TabsContent>
       <TabsContent value="rma" className="mt-6">
-        <RMAForm />
+        <RMAForm onBack={handleBack} />
       </TabsContent>
       <TabsContent value="history" className="mt-6">
         <TechnicianHistory />
