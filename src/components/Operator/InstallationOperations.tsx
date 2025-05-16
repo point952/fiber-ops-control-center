@@ -188,8 +188,9 @@ const InstallationOperations: React.FC<InstallationOperationsProps> = ({ onClaim
                       
                       {op.status === 'iniciando_provisionamento' && (
                         <Button 
-                          variant="success" 
+                          variant="default" 
                           size="sm"
+                          className="bg-green-600 hover:bg-green-700"
                           onClick={() => handleProvisioningComplete(op.id)}
                         >
                           Finalizar Prov.
@@ -222,7 +223,7 @@ const InstallationOperations: React.FC<InstallationOperationsProps> = ({ onClaim
           <DialogHeader>
             <DialogTitle>Detalhes da Instalação</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="space-y-4 py-4 max-h-[70vh] overflow-y-auto">
             {selectedOp && (
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-2">
@@ -256,6 +257,30 @@ const InstallationOperations: React.FC<InstallationOperationsProps> = ({ onClaim
                   <div className="p-3 bg-gray-50 rounded-md">
                     <p className="text-sm font-semibold">Observações:</p>
                     <p className="text-sm">{selectedOp.data.Observações}</p>
+                  </div>
+                )}
+
+                {/* Exibir o resumo da instalação se presente */}
+                {selectedOp.data.resumo && (
+                  <div className="p-3 bg-blue-50 rounded-md border border-blue-100">
+                    <p className="text-sm font-semibold text-blue-800">Resumo da Instalação:</p>
+                    <pre className="text-sm whitespace-pre-wrap">{selectedOp.data.resumo}</pre>
+                  </div>
+                )}
+
+                {/* Exibir todas as informações adicionais disponíveis */}
+                {Object.entries(selectedOp.data).filter(
+                  ([key]) => !['Cliente', 'Serviço', 'Modelo', 'Serial', 'Endereço', 'Observações', 'resumo'].includes(key)
+                ).length > 0 && (
+                  <div className="p-3 bg-gray-50 rounded-md">
+                    <p className="text-sm font-semibold">Informações Adicionais:</p>
+                    {Object.entries(selectedOp.data).filter(
+                      ([key]) => !['Cliente', 'Serviço', 'Modelo', 'Serial', 'Endereço', 'Observações', 'resumo'].includes(key)
+                    ).map(([key, value]) => (
+                      <div key={key} className="text-sm mt-1">
+                        <span className="font-medium">{key}:</span> {String(value)}
+                      </div>
+                    ))}
                   </div>
                 )}
 

@@ -1,209 +1,157 @@
 
-import React, { useRef } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { cn } from '@/lib/utils';
-import { toast } from "sonner";
-import { useOperations } from '@/context/OperationContext';
-import { Link } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Button } from "@/components/ui/button";
 import { useAuth } from '@/context/AuthContext';
+import { useOperations } from '@/context/OperationContext';
+import { toast } from "sonner";
 
 interface TableGeneratorProps {
-  data: Record<string, any>;
-  title: string;
-  className?: string;
+  formData: Record<string, string>;
   type: 'installation' | 'cto' | 'rma';
-  technician?: string;
+  onTableGenerated?: (tableHTML: string, fields: Record<string, string>) => void;
+  onBack?: () => void;
 }
 
-const TableGenerator: React.FC<TableGeneratorProps> = ({ data, title, className, type, technician }) => {
-  const textRef = useRef<HTMLDivElement>(null);
-  const { operations, addOperation } = useOperations();
+const TableGenerator: React.FC<TableGeneratorProps> = ({ 
+  formData, 
+  type, 
+  onTableGenerated,
+  onBack
+}) => {
   const { user } = useAuth();
-  
-  const copyToClipboard = () => {
-    if (textRef.current) {
-      const text = textRef.current.innerText;
-      
-      if (navigator.clipboard) {
-        navigator.clipboard.writeText(text)
-          .then(() => toast.success("Tabela copiada para a área de transferência"))
-          .catch(err => {
-            console.error("Failed to copy: ", err);
-            fallbackCopyToClipboard(text);
-          });
-      } else {
-        fallbackCopyToClipboard(text);
+  const { addOperation } = useOperations();
+  const [tableGenerated, setTableGenerated] = useState(false);
+  const [generatedTable, setGeneratedTable] = useState('');
+  const [submittedData, setSubmittedData] = useState<Record<string, string>>({});
+
+  const generateTable = () => {
+    // Adiciona automaticamente o nome do técnico logado
+    const dataWithTechnician = {
+      ...formData,
+      Técnico: user?.name || 'Técnico não identificado'
+    };
+    
+    let tableHTML = '<table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse;">';
+    
+    // Cabeçalho baseado no tipo de operação
+    let header = '';
+    if (type === 'installation') {
+      header = '<tr style="background-color: #f2f2f2;"><th colspan="2">Dados da Instalação/Upgrade</th></tr>';
+    } else if (type === 'cto') {
+      header = '<tr style="background-color: #f2f2f2;"><th colspan="2">Análise de CTO</th></tr>';
+    } else {
+      header = '<tr style="background-color: #f2f2f2;"><th colspan="2">Solicitação de RMA</th></tr>';
+    }
+    
+    tableHTML += header;
+    
+    // Adiciona as linhas da tabela
+    for (const [key, value] of Object.entries(dataWithTechnician)) {
+      if (value && value.trim() !== '') {
+        tableHTML += `<tr><td style="font-weight: bold;">${key}</td><td>${value}</td></tr>`;
       }
     }
+    
+    // Adiciona data e hora atual
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('pt-BR');
+    const timeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    tableHTML += `<tr><td style="font-weight: bold;">Data</td><td>${dateStr} ${timeStr}</td></tr>`;
+    
+    tableHTML += '</table>';
+    
+    setGeneratedTable(tableHTML);
+    setSubmittedData(dataWithTechnician);
+    setTableGenerated(true);
+    
+    if (onTableGenerated) {
+      onTableGenerated(tableHTML, dataWithTechnician);
+    }
   };
-  
-  const fallbackCopyToClipboard = (text: string) => {
-    // Fallback method using document.execCommand (deprecated but still works as fallback)
+
+  const copyToClipboard = () => {
+    // Tentativa de copiar HTML
     try {
-      const textArea = document.createElement('textarea');
-      textArea.value = text;
-      document.body.appendChild(textArea);
-      textArea.select();
-      
-      const successful = document.execCommand('copy');
-      if (successful) {
-        toast.success("Tabela copiada para a área de transferência");
-      } else {
-        toast.error("Não foi possível copiar a tabela");
-      }
-      
-      document.body.removeChild(textArea);
+      navigator.clipboard.writeText(generatedTable).then(() => {
+        toast.success("Tabela HTML copiada para área de transferência!");
+      }).catch(err => {
+        console.error('Erro ao copiar: ', err);
+        toast.error("Erro ao copiar a tabela. Tente manualmente selecionando o conteúdo.");
+      });
     } catch (err) {
-      toast.error("Não foi possível copiar a tabela");
-      console.error("Clipboard error:", err);
+      console.error('Erro ao copiar: ', err);
+      toast.error("Erro ao copiar a tabela. Tente manualmente selecionando o conteúdo.");
     }
   };
 
   const sendToOperator = () => {
-    // Use current user name and ID if not provided
-    const techName = technician || user?.name || 'Técnico';
-    const techId = user?.id || '';
-    
-    addOperation(type, data, techName, techId);
-    
-    toast.success("Informações enviadas para o operador");
-  };
-
-  const operationExists = operations.some(op => 
-    op.type === type && 
-    (op.technician === (technician || user?.name) || op.technicianId === user?.id) && 
-    ((type === 'installation' && op.data.Serial === data.Serial) || 
-    (type === 'rma' && op.data.serial === data.serial) || 
-    (type === 'cto' && op.data.Bairro === data.Bairro && op.data.Rua === data.Rua))
-  );
-
-  const matchingOperation = operations.find(op => 
-    op.type === type && 
-    (op.technician === (technician || user?.name) || op.technicianId === user?.id) && 
-    ((type === 'installation' && op.data.Serial === data.Serial) || 
-    (type === 'rma' && op.data.serial === data.serial) || 
-    (type === 'cto' && op.data.Bairro === data.Bairro && op.data.Rua === data.Rua))
-  );
-
-  const status = matchingOperation ? matchingOperation.status : null;
-  const feedback = matchingOperation ? matchingOperation.feedback : null;
-  const assignedOperator = matchingOperation ? matchingOperation.assignedOperator : null;
-
-  const filteredData = Object.fromEntries(
-    Object.entries(data).filter(([_, value]) => 
-      value !== undefined && value !== null && value !== ''
-    )
-  );
-
-  // Add technician information if available
-  const displayData = {
-    ...filteredData,
-    "Técnico": technician || user?.name || "Técnico",
-  };
-
-  const getStatusText = () => {
-    if (!status) return null;
-
-    switch (status) {
-      case 'pendente': 
-        return "Pendente de análise pelo operador";
-      case 'iniciando_provisionamento':
-        return "Provisionamento em andamento";
-      case 'provisionamento_finalizado':
-        return "Provisionamento finalizado";
-      case 'verificando':
-        return "CTO em verificação";
-      case 'verificacao_finalizada':
-        return "Verificação da CTO finalizada";
-      case 'em_analise':
-        return "RMA em análise";
-      case 'finalizado':
-        return "RMA finalizado";
-      default:
-        return null;
-    }
-  };
-
-  const getStatusClass = () => {
-    if (!status) return "";
-    
-    switch (status) {
-      case 'pendente': 
-        return "bg-yellow-50 border-yellow-200 text-yellow-800";
-      case 'iniciando_provisionamento':
-      case 'verificando':
-      case 'em_analise':
-        return "bg-blue-50 border-blue-200 text-blue-800";
-      case 'provisionamento_finalizado':
-      case 'verificacao_finalizada':
-      case 'finalizado':
-        return "bg-green-50 border-green-200 text-green-800";
-      default:
-        return "";
+    if (user) {
+      addOperation(type, submittedData, user.name, user.id);
+      toast.success("Solicitação enviada com sucesso para o operador!");
+      
+      if (onBack) {
+        setTimeout(onBack, 1500);
+      }
+    } else {
+      toast.error("Você precisa estar logado para enviar a solicitação.");
     }
   };
 
   return (
-    <Card className={cn("w-full", className)}>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div 
-          ref={textRef} 
-          className="bg-gray-50 p-4 border border-gray-200 rounded-md whitespace-pre-wrap font-mono text-sm mb-4 overflow-auto max-h-[600px]"
+    <div className="mt-8 max-w-4xl mx-auto">
+      <div className="flex justify-between mb-4">
+        <Button 
+          type="button"
+          variant="outline"
+          onClick={onBack}
         >
-          {Object.entries(displayData).map(([key, value]) => (
-            <div key={key} className="flex mb-1">
-              <span className="font-semibold w-32">{key}:</span>
-              <span className="ml-2">{value?.toString() || ''}</span>
-            </div>
-          ))}
-        </div>
-
-        {/* Status display */}
-        {status && (
-          <div className={cn("p-4 rounded-md mb-4 border", getStatusClass())}>
-            <div className="font-medium mb-2">Status: {getStatusText()}</div>
-            
-            {assignedOperator && (
-              <div className="mb-2 text-blue-700 font-medium">
-                Operador responsável: {assignedOperator}
-              </div>
-            )}
-            
-            {feedback && (
-              <div>
-                <div className="font-medium mb-1">Feedback do Operador:</div>
-                <div className="p-2 bg-white bg-opacity-50 rounded">{feedback}</div>
-              </div>
-            )}
-          </div>
-        )}
-      </CardContent>
-      <CardFooter className="flex flex-col gap-2">
-        <Button onClick={copyToClipboard} className="w-full">
-          Copiar Tabela
+          Voltar
         </Button>
-        {!operationExists ? (
-          <Button onClick={sendToOperator} variant="outline" className="w-full">
-            Enviar para Operador
+        
+        {!tableGenerated && (
+          <Button 
+            type="button" 
+            onClick={generateTable}
+          >
+            Gerar Tabela
           </Button>
-        ) : (
-          <div className="text-center text-sm text-gray-500 mt-2">
-            Já enviado para o operador. Verifique o status acima.
+        )}
+      </div>
+
+      {tableGenerated ? (
+        <div>
+          <div className="p-4 border rounded-lg bg-gray-50 mb-4">
+            <p className="text-sm text-gray-600 mb-2">Tabela gerada com sucesso:</p>
+            <div 
+              className="border p-4 bg-white rounded"
+              dangerouslySetInnerHTML={{ __html: generatedTable }} 
+            />
           </div>
-        )}
-        {(user?.role === 'admin' || user?.role === 'operator') && (
-          <Link to="/operador" className="w-full">
-            <Button variant="secondary" className="w-full">
-              Ir para Painel do Operador
+          
+          <div className="flex justify-between mt-4">
+            <Button
+              type="button"
+              variant="default"
+              onClick={copyToClipboard}
+            >
+              Copiar HTML
             </Button>
-          </Link>
-        )}
-      </CardFooter>
-    </Card>
+            
+            <Button
+              type="button"
+              variant="default"
+              onClick={sendToOperator}
+            >
+              Enviar para Operador
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="p-8 border border-dashed rounded-lg text-center">
+          <p className="text-gray-500">Clique em "Gerar Tabela" para criar uma tabela com os dados informados.</p>
+        </div>
+      )}
+    </div>
   );
 };
 
