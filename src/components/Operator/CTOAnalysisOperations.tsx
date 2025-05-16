@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useOperations } from '@/context/OperationContext';
 import { useAuth } from '@/context/AuthContext';
@@ -153,7 +152,7 @@ const CTOAnalysisOperations = ({ onClaimTask }: CTOAnalysisOperationsProps) => {
                         ? 'outline' 
                         : operation.status === 'verificando'
                           ? 'secondary'
-                          : 'success'
+                          : 'default'
                     }>
                       {operation.status === 'pendente' 
                         ? 'Pendente' 

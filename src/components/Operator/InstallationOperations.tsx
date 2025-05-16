@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useOperations } from '@/context/OperationContext';
 import { useAuth } from '@/context/AuthContext';
@@ -151,7 +150,7 @@ const InstallationOperations = ({ onClaimTask }: InstallationOperationsProps) =>
                         ? 'outline' 
                         : operation.status === 'iniciando_provisionamento'
                           ? 'secondary'
-                          : 'success'
+                          : 'default'
                     }>
                       {operation.status === 'pendente' 
                         ? 'Pendente' 

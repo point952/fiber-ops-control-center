@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useOperations } from '@/context/OperationContext';
 import { useAuth } from '@/context/AuthContext';
@@ -140,7 +139,7 @@ const RMAOperations = ({ onClaimTask }: RMAOperationsProps) => {
                         ? 'outline' 
                         : operation.status === 'em_analise'
                           ? 'secondary'
-                          : 'success'
+                          : 'default'
                     }>
                       {operation.status === 'pendente' 
                         ? 'Pendente' 
