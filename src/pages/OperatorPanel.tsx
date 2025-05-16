@@ -8,18 +8,18 @@ import OperatorTabs from '@/components/Operator/OperatorTabs';
 import InstallationOperations from '@/components/Operator/InstallationOperations';
 import CTOAnalysisOperations from '@/components/Operator/CTOAnalysisOperations';
 import RMAOperations from '@/components/Operator/RMAOperations';
+import OperatorHistory from '@/components/Operator/OperatorHistory';
+import OperatorMessaging from '@/components/Operator/OperatorMessaging';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { Bell, MessageSquare, Database, History, FileText, User } from 'lucide-react';
+import { Bell, Database, History } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
-  DialogFooter,
 } from '@/components/ui/dialog';
 import {
   Table,
@@ -29,14 +29,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
 
-type TabType = 'installation' | 'cto' | 'rma';
+type TabType = 'installation' | 'cto' | 'rma' | 'history';
 
 const OperatorPanel = () => {
   const [activeTab, setActiveTab] = useState<TabType>('installation');
@@ -49,8 +43,6 @@ const OperatorPanel = () => {
   const [hasNewNotification, setHasNewNotification] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [showDbStats, setShowDbStats] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
-  const [showOperationDetails, setShowOperationDetails] = useState<string | null>(null);
 
   // Count pending operations for queue simulation
   const pendingOperations = operations.filter(op => op.status === 'pendente').length;
@@ -82,9 +74,6 @@ const OperatorPanel = () => {
   const assignedToCurrentOperator = operations.filter(
     op => op.assignedOperator === user?.name || op.assignedOperator === user?.username
   ).length;
-  
-  // Get selected operation for details
-  const selectedOperation = operations.find(op => op.id === showOperationDetails);
   
   useEffect(() => {
     // Simulate queue position - in a real app this would come from the server
@@ -147,6 +136,14 @@ const OperatorPanel = () => {
     toast.success(`Chamado atribuído a ${user.name}`);
   };
 
+  // Update the tab list to include history
+  const tabOptions: { value: TabType; label: string; count?: number }[] = [
+    { value: 'installation', label: 'Instalações', count: stats.installation.total },
+    { value: 'cto', label: 'CTOs', count: stats.cto.total },
+    { value: 'rma', label: 'RMAs', count: stats.rma.total },
+    { value: 'history', label: 'Histórico', count: history.length }
+  ];
+
   const renderTabContent = () => {
     // Pass the claim task function to each operation component
     const props = { onClaimTask: claimTask };
@@ -158,13 +155,12 @@ const OperatorPanel = () => {
         return <CTOAnalysisOperations {...props} />;
       case 'rma':
         return <RMAOperations {...props} />;
+      case 'history':
+        return <OperatorHistory />;
       default:
         return <div>Selecione uma guia</div>;
     }
   };
-
-  // Only admins should see the history tab
-  const showHistoryTab = user?.role === 'admin';
   
   // Only show appropriate controls based on user role
   const showControls = user?.role === 'operator' || user?.role === 'admin';
@@ -218,15 +214,13 @@ const OperatorPanel = () => {
               </>
             )}
             
-            {user?.role === 'admin' && (
-              <button
-                onClick={() => setShowHistory(true)}
-                className="bg-amber-100 text-amber-800 px-4 py-2 rounded-md hover:bg-amber-200 transition-colors flex items-center gap-2"
-              >
-                <History className="h-4 w-4" />
-                <span>Histórico</span>
-              </button>
-            )}
+            <button
+              onClick={() => setActiveTab('history')}
+              className="bg-amber-100 text-amber-800 px-4 py-2 rounded-md hover:bg-amber-200 transition-colors flex items-center gap-2"
+            >
+              <History className="h-4 w-4" />
+              <span>Histórico</span>
+            </button>
             
             <button
               onClick={() => setShowDbStats(true)}
@@ -298,28 +292,46 @@ const OperatorPanel = () => {
           </div>
         </div>
 
-        <OperatorTabs activeTab={activeTab} setActiveTab={setActiveTab} />
+        {/* Updated tabs to include history */}
+        <div className="flex overflow-x-auto pb-2">
+          <div className="inline-flex rounded-lg bg-gray-100 p-1">
+            {tabOptions.map((tab) => (
+              <button
+                key={tab.value}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors relative ${
+                  activeTab === tab.value
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-700 hover:bg-gray-200'
+                }`}
+                onClick={() => setActiveTab(tab.value)}
+              >
+                {tab.label}
+                {tab.count !== undefined && (
+                  <span className={`ml-1.5 px-2 py-0.5 rounded text-xs ${
+                    activeTab === tab.value
+                      ? 'bg-blue-100 text-blue-800'
+                      : 'bg-gray-200 text-gray-700'
+                  }`}>
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
         
         <div className="bg-white rounded-lg shadow-md mt-6 p-6">
           {renderTabContent()}
         </div>
-        
-        {!isMobile && (
-          <div className="fixed bottom-6 right-6">
-            <div className="bg-blue-600 text-white p-4 rounded-full shadow-lg cursor-pointer hover:bg-blue-700 transition-colors">
-              <MessageSquare className="h-6 w-6" />
-            </div>
-          </div>
-        )}
 
+        {/* Messaging component */}
+        <OperatorMessaging />
+        
         {/* Database Statistics Dialog */}
         <Dialog open={showDbStats} onOpenChange={setShowDbStats}>
           <DialogContent className="max-w-3xl">
             <DialogHeader>
               <DialogTitle>Estatísticas do Banco de Dados</DialogTitle>
-              <DialogDescription>
-                Visão geral das informações armazenadas no sistema
-              </DialogDescription>
             </DialogHeader>
             
             <div className="space-y-6">
@@ -421,246 +433,6 @@ const OperatorPanel = () => {
                   </p>
                 </div>
               </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-        
-        {/* Operation History Dialog - Admin Only */}
-        <Dialog open={showHistory} onOpenChange={setShowHistory}>
-          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Histórico de Chamados Finalizados</DialogTitle>
-              <DialogDescription>
-                Registro completo de todas as operações finalizadas
-              </DialogDescription>
-            </DialogHeader>
-            
-            <Tabs defaultValue="installation" className="mt-4">
-              <TabsList className="grid grid-cols-3">
-                <TabsTrigger value="installation">Instalações</TabsTrigger>
-                <TabsTrigger value="cto">CTOs</TabsTrigger>
-                <TabsTrigger value="rma">RMAs</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="installation">
-                <div className="rounded-md border overflow-hidden mt-4">
-                  {history.filter(h => h.type === 'installation').length > 0 ? (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Cliente</TableHead>
-                          <TableHead>Técnico</TableHead>
-                          <TableHead>Operador</TableHead>
-                          <TableHead>Data Finalização</TableHead>
-                          <TableHead className="text-right">Ações</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {history
-                          .filter(h => h.type === 'installation')
-                          .sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime())
-                          .map(record => (
-                            <TableRow key={record.id}>
-                              <TableCell>{record.data.Cliente || "N/A"}</TableCell>
-                              <TableCell>{record.technician}</TableCell>
-                              <TableCell>{record.operator}</TableCell>
-                              <TableCell>{new Date(record.completedAt).toLocaleDateString('pt-BR', {
-                                day: '2-digit',
-                                month: '2-digit',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}</TableCell>
-                              <TableCell className="text-right">
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  onClick={() => setShowOperationDetails(record.id)}
-                                >
-                                  <FileText className="h-4 w-4 mr-1" /> Detalhes
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                      </TableBody>
-                    </Table>
-                  ) : (
-                    <div className="p-6 text-center text-gray-500">
-                      Não há registros de instalações finalizadas.
-                    </div>
-                  )}
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="cto">
-                <div className="rounded-md border overflow-hidden mt-4">
-                  {history.filter(h => h.type === 'cto').length > 0 ? (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>CTO</TableHead>
-                          <TableHead>Técnico</TableHead>
-                          <TableHead>Operador</TableHead>
-                          <TableHead>Data Finalização</TableHead>
-                          <TableHead className="text-right">Ações</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {history
-                          .filter(h => h.type === 'cto')
-                          .sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime())
-                          .map(record => (
-                            <TableRow key={record.id}>
-                              <TableCell>{record.data.cto || "N/A"}</TableCell>
-                              <TableCell>{record.technician}</TableCell>
-                              <TableCell>{record.operator}</TableCell>
-                              <TableCell>{new Date(record.completedAt).toLocaleDateString('pt-BR', {
-                                day: '2-digit',
-                                month: '2-digit',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}</TableCell>
-                              <TableCell className="text-right">
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  onClick={() => setShowOperationDetails(record.id)}
-                                >
-                                  <FileText className="h-4 w-4 mr-1" /> Detalhes
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                      </TableBody>
-                    </Table>
-                  ) : (
-                    <div className="p-6 text-center text-gray-500">
-                      Não há registros de CTOs finalizadas.
-                    </div>
-                  )}
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="rma">
-                <div className="rounded-md border overflow-hidden mt-4">
-                  {history.filter(h => h.type === 'rma').length > 0 ? (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Serial</TableHead>
-                          <TableHead>Técnico</TableHead>
-                          <TableHead>Operador</TableHead>
-                          <TableHead>Data Finalização</TableHead>
-                          <TableHead className="text-right">Ações</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {history
-                          .filter(h => h.type === 'rma')
-                          .sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime())
-                          .map(record => (
-                            <TableRow key={record.id}>
-                              <TableCell>{record.data.serial || "N/A"}</TableCell>
-                              <TableCell>{record.technician}</TableCell>
-                              <TableCell>{record.operator}</TableCell>
-                              <TableCell>{new Date(record.completedAt).toLocaleDateString('pt-BR', {
-                                day: '2-digit',
-                                month: '2-digit',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}</TableCell>
-                              <TableCell className="text-right">
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  onClick={() => setShowOperationDetails(record.id)}
-                                >
-                                  <FileText className="h-4 w-4 mr-1" /> Detalhes
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                      </TableBody>
-                    </Table>
-                  ) : (
-                    <div className="p-6 text-center text-gray-500">
-                      Não há registros de RMAs finalizados.
-                    </div>
-                  )}
-                </div>
-              </TabsContent>
-            </Tabs>
-          </DialogContent>
-        </Dialog>
-        
-        {/* Operation Details Dialog */}
-        <Dialog open={!!showOperationDetails} onOpenChange={() => setShowOperationDetails(null)}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Detalhes da Operação</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              {selectedOperation && (
-                <div className="space-y-4">
-                  {/* Display all operation data in a neat format */}
-                  <div className="bg-gray-50 p-4 rounded-md border border-gray-200">
-                    <h3 className="font-medium mb-2">Informações Gerais</h3>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="text-sm text-gray-700">
-                        <span className="font-medium">Tipo:</span> {
-                          selectedOperation.type === 'installation' ? 'Instalação' :
-                          selectedOperation.type === 'cto' ? 'Análise de CTO' : 'RMA'
-                        }
-                      </div>
-                      <div className="text-sm text-gray-700">
-                        <span className="font-medium">Status:</span> {selectedOperation.status.replace(/_/g, ' ')}
-                      </div>
-                      <div className="text-sm text-gray-700">
-                        <span className="font-medium">Criado em:</span> {new Date(selectedOperation.createdAt).toLocaleString('pt-BR')}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="bg-blue-50 p-4 rounded-md border border-blue-200">
-                    <div className="flex items-center gap-2 mb-2">
-                      <User className="h-4 w-4 text-blue-600" />
-                      <h3 className="font-medium text-blue-800">Responsáveis</h3>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="text-sm">
-                        <span className="font-medium">Técnico:</span> {selectedOperation.technician}
-                      </div>
-                      {selectedOperation.assignedOperator && (
-                        <div className="text-sm">
-                          <span className="font-medium">Operador:</span> {selectedOperation.assignedOperator}
-                        </div>
-                      )}
-                      {selectedOperation.assignedAt && (
-                        <div className="text-sm">
-                          <span className="font-medium">Atribuído em:</span> {
-                            new Date(selectedOperation.assignedAt).toLocaleString('pt-BR')
-                          }
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="bg-white p-4 rounded-md border border-gray-200">
-                    <h3 className="font-medium mb-2">Detalhes</h3>
-                    {Object.entries(selectedOperation.data).map(([key, value]) => (
-                      <div key={key} className="mb-1 text-sm">
-                        <span className="font-medium">{key}:</span> {String(value)}
-                      </div>
-                    ))}
-                  </div>
-                  
-                  {selectedOperation.feedback && (
-                    <div className="bg-green-50 p-4 rounded-md border border-green-200">
-                      <h3 className="font-medium text-green-800 mb-2">Feedback</h3>
-                      <p className="text-sm">{selectedOperation.feedback}</p>
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
           </DialogContent>
         </Dialog>
