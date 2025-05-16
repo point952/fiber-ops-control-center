@@ -108,7 +108,8 @@ const InstallationOperations: React.FC<InstallationOperationsProps> = ({ onClaim
                     <Badge
                       variant={op.status === 'pendente' ? "outline" : 
                               op.status === 'iniciando_provisionamento' ? "secondary" : 
-                              "success"}
+                              "default"}
+                      className={op.status === 'provisionamento_finalizado' ? "bg-green-600 text-white" : ""}
                     >
                       {op.status.replace(/_/g, ' ')}
                     </Badge>
@@ -188,8 +189,7 @@ const InstallationOperations: React.FC<InstallationOperationsProps> = ({ onClaim
                       {op.status === 'iniciando_provisionamento' && (
                         <Button 
                           variant="success" 
-                          size="sm" 
-                          className="bg-green-600 hover:bg-green-700"
+                          size="sm"
                           onClick={() => handleProvisioningComplete(op.id)}
                         >
                           Finalizar Prov.
