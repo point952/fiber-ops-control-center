@@ -11,6 +11,9 @@ import OperatorPanel from "./pages/OperatorPanel";
 import Login from "./pages/Login";
 import AdminPanel from "./pages/AdminPanel";
 import ProtectedRoute from "./components/ProtectedRoute";
+import TechnicianHistory from './pages/TechnicianHistory';
+import TechnicianMessages from './pages/TechnicianMessages';
+import TechnicianNotifications from './pages/TechnicianNotifications';
 
 const queryClient = new QueryClient();
 
@@ -32,6 +35,24 @@ const App = () => (
           <Route path="/operations" element={
             <ProtectedRoute allowedRoles={['technician', 'admin']}>
               <OperationsView />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/history" element={
+            <ProtectedRoute allowedRoles={['technician', 'admin']}>
+              <TechnicianHistory />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/messages" element={
+            <ProtectedRoute allowedRoles={['technician', 'admin']}>
+              <TechnicianMessages />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/notifications" element={
+            <ProtectedRoute allowedRoles={['technician', 'admin']}>
+              <TechnicianNotifications />
             </ProtectedRoute>
           } />
           

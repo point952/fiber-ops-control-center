@@ -7,18 +7,25 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import MainMenu from '@/components/MainMenu';
 import { toast } from "sonner";
+import { 
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { UserProfile } from '@/components/Technician/UserProfile';
 
 const Index = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const { getPendingOperationsCount } = useOperations();
+  const { getPendingOperationsCount, getUserOperations } = useOperations();
   
   // Get pending operations counts for menu indicators
   const pendingInstallations = getPendingOperationsCount('installation');
   const pendingCTOs = getPendingOperationsCount('cto');
   const pendingRMAs = getPendingOperationsCount('rma');
   
-  // Track if profile modal is open
+  // Track if modals are open
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   
   if (!user) {
@@ -29,10 +36,19 @@ const Index = () => {
   const handleMenuSelect = (option: string) => {
     switch (option) {
       case 'installation':
+        navigate('/operations', { state: { activeTab: 'installation', directForm: true } });
+        break;
+        
       case 'cto':
+        navigate('/operations', { state: { activeTab: 'cto', directForm: true } });
+        break;
+        
       case 'rma':
-        // Navigate to operations view with the selected tab
-        navigate('/operations', { state: { activeTab: option } });
+        navigate('/operations', { state: { activeTab: 'rma', directForm: true } });
+        break;
+        
+      case 'history':
+        navigate('/history');
         break;
         
       case 'logout':
@@ -42,23 +58,18 @@ const Index = () => {
         break;
         
       case 'profile':
-        // Show toast for feature in development
-        toast.info("Perfil do usuário será implementado em breve");
-        console.log("Profile selected");
+        setProfileModalOpen(true);
         break;
         
       case 'messages':
-        // Show toast for feature in development
-        toast.info("Sistema de mensagens será implementado em breve");
+        navigate('/messages');
         break;
         
       case 'notifications':
-        // Show toast for feature in development
-        toast.info("Sistema de notificações será implementado em breve");
+        navigate('/notifications');
         break;
         
       default:
-        // Default case - unexpected option
         toast.error("Opção não reconhecida");
         console.error(`Unhandled menu option: ${option}`);
     }
@@ -81,6 +92,16 @@ const Index = () => {
         />
       </main>
       <Footer />
+      
+      {/* User Profile Dialog */}
+      <Dialog open={profileModalOpen} onOpenChange={setProfileModalOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Perfil do Técnico</DialogTitle>
+          </DialogHeader>
+          {user && <UserProfile user={user} />}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

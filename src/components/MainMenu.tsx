@@ -6,7 +6,8 @@ import {
   FileBarChart, 
   Box, 
   Monitor, 
-  Bell, 
+  Bell,
+  History,
   UserCircle,
   MessageSquare 
 } from 'lucide-react';
@@ -122,17 +123,29 @@ const MainMenu: React.FC<MainMenuProps> = ({
             </Button>
           </CardContent>
         </Card>
+        
+        {/* History Card - Added new */}
+        <Card className="overflow-hidden transition-all duration-300 transform hover:scale-105 hover:shadow-2xl bg-gradient-to-br from-white to-amber-50 border-none shadow-lg">
+          <CardContent className="p-0 relative">
+            <Button
+              variant="ghost"
+              className="w-full h-full p-8 flex flex-col items-center justify-center gap-4 rounded-none transition-all duration-300"
+              onClick={() => onSelect('history')}
+            >
+              <div className="rounded-full bg-gradient-to-br from-amber-500 to-amber-600 p-4 shadow-lg mb-2">
+                <History className="h-10 w-10 text-white" />
+              </div>
+              <div className="text-center">
+                <span className="text-xl font-medium text-amber-700 block">Histórico</span>
+                <span className="text-sm text-amber-500 mt-1 block">Visualizar atividades anteriores</span>
+              </div>
+            </Button>
+          </CardContent>
+        </Card>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mt-6">
-        {/* Quick Access Section */}
-        <Link to="/operador" className="block">
-          <Button variant="outline" className="w-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center gap-2 h-16">
-            <Monitor className="h-5 w-5" />
-            <span>Painel do Operador</span>
-          </Button>
-        </Link>
-        
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+        {/* User Profile Button */}
         <Button 
           variant="outline" 
           className="w-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center gap-2 h-16"
@@ -142,6 +155,7 @@ const MainMenu: React.FC<MainMenuProps> = ({
           <span>Meu Perfil</span>
         </Button>
         
+        {/* Messages Button */}
         <Button 
           variant="outline" 
           className="w-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center gap-2 h-16"
@@ -151,6 +165,7 @@ const MainMenu: React.FC<MainMenuProps> = ({
           <span>Mensagens</span>
         </Button>
         
+        {/* Notifications Button */}
         <Button 
           variant="outline" 
           className="w-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center gap-2 h-16"

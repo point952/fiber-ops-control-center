@@ -5,7 +5,9 @@ import { useAuth } from '@/context/AuthContext';
 import { useOperations } from '@/context/operations/OperationContext';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import IndexTabs from './IndexTabs';
+import InstallationForm from '@/components/Installation/InstallationForm';
+import CTOAnalysisForm from '@/components/CTO/CTOAnalysisForm';
+import RMAForm from '@/components/RMA/RMAForm';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { toast } from "sonner";
@@ -14,12 +16,14 @@ const OperationsView = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
-  const { getPendingOperationsCount } = useOperations();
   
   // Get the active tab from location state or default to 'installation'
-  const [activeTab, setActiveTab] = useState(
+  const [activeTab, setActiveTab] = useState<string>(
     location.state?.activeTab || 'installation'
   );
+  
+  // Check if we need to show direct form (from main menu)
+  const directForm = location.state?.directForm || false;
   
   // Update active tab when location state changes
   useEffect(() => {
@@ -37,11 +41,6 @@ const OperationsView = () => {
     }
   }, [location.state]);
   
-  // Get pending operations counts for tab indicators
-  const pendingInstallations = getPendingOperationsCount('installation');
-  const pendingCTOs = getPendingOperationsCount('cto');
-  const pendingRMAs = getPendingOperationsCount('rma');
-  
   if (!user) {
     navigate('/login');
     return null;
@@ -49,6 +48,20 @@ const OperationsView = () => {
   
   const handleBack = () => {
     navigate('/');
+  };
+  
+  // Render the appropriate form based on the active tab
+  const renderForm = () => {
+    switch (activeTab) {
+      case 'installation':
+        return <InstallationForm />;
+      case 'cto':
+        return <CTOAnalysisForm />;
+      case 'rma':
+        return <RMAForm />;
+      default:
+        return <p>Selecione uma operação para iniciar</p>;
+    }
   };
   
   return (
@@ -65,19 +78,17 @@ const OperationsView = () => {
             Voltar ao Menu
           </Button>
           <div>
-            <h1 className="text-3xl font-bold mb-1">Operações</h1>
-            <p className="text-gray-600">Gerenciar atividades técnicas</p>
+            <h1 className="text-3xl font-bold mb-1">
+              {activeTab === 'installation' && 'Instalação/Upgrade'}
+              {activeTab === 'cto' && 'Análise de CTO'}
+              {activeTab === 'rma' && 'RMA'}
+            </h1>
+            <p className="text-gray-600">Preencha o formulário abaixo</p>
           </div>
         </div>
         
         <div className="bg-white rounded-lg shadow-md p-6">
-          <IndexTabs 
-            activeTab={activeTab}
-            setActiveTab={setActiveTab}
-            pendingInstallations={pendingInstallations}
-            pendingCTOs={pendingCTOs}
-            pendingRMAs={pendingRMAs}
-          />
+          {renderForm()}
         </div>
       </main>
       <Footer />
