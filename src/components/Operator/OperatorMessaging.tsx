@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useOperations } from '@/context/OperationContext';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Bell, MessageSquare } from 'lucide-react';
+import { MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   Sheet,
