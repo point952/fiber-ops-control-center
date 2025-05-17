@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
+import OperationsView from "./pages/OperationsView";
 import NotFound from "./pages/NotFound";
 import OperatorPanel from "./pages/OperatorPanel";
 import Login from "./pages/Login";
@@ -25,6 +26,12 @@ const App = () => (
           <Route path="/" element={
             <ProtectedRoute allowedRoles={['technician', 'admin']}>
               <Index />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/operations" element={
+            <ProtectedRoute allowedRoles={['technician', 'admin']}>
+              <OperationsView />
             </ProtectedRoute>
           } />
           
