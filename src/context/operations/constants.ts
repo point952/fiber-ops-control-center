@@ -8,7 +8,7 @@ export const USER_DB_PREFIX = 'technician_operations_';
 export const defaultOperations = [
   {
     id: '1',
-    type: 'installation',
+    type: 'installation' as const,
     data: {
       Cliente: 'João Silva',
       Serviço: 'Nova Instalação',
@@ -18,13 +18,13 @@ export const defaultOperations = [
       Observações: 'Cliente prefere instalação no período da tarde'
     },
     createdAt: new Date('2023-05-10T10:30:00'),
-    status: 'pendente',
+    status: 'pendente' as const,
     technician: 'Técnico Padrão',
     technicianId: '3'
   },
   {
     id: '2',
-    type: 'cto',
+    type: 'cto' as const,
     data: {
       cto: 'CTO-987',
       bairro: 'Centro',
@@ -33,20 +33,20 @@ export const defaultOperations = [
       portas: 8
     },
     createdAt: new Date('2023-05-11T14:15:00'),
-    status: 'pendente',
+    status: 'pendente' as const,
     technician: 'Técnico CTO',
     technicianId: '3'
   },
   {
     id: '3',
-    type: 'rma',
+    type: 'rma' as const,
     data: {
       modelo: 'ONT-456',
       serial: 'XYZ78901',
       problema: 'Dispositivo não liga'
     },
     createdAt: new Date('2023-05-12T09:45:00'),
-    status: 'pendente',
+    status: 'pendente' as const,
     technician: 'Técnico RMA',
     technicianId: '3'
   }
