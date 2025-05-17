@@ -10,14 +10,14 @@ interface UserProfileProps {
   user: {
     id: string;
     name: string;
-    email: string;
+    email?: string; // Make email optional
     role: string;
   };
 }
 
 export const UserProfile: React.FC<UserProfileProps> = ({ user }) => {
   const [name, setName] = useState(user.name);
-  const [email, setEmail] = useState(user.email);
+  const [email, setEmail] = useState(user.email || ''); // Provide default value
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');

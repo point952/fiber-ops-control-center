@@ -54,11 +54,11 @@ const OperationsView = () => {
   const renderForm = () => {
     switch (activeTab) {
       case 'installation':
-        return <InstallationForm />;
+        return <InstallationForm onBack={handleBack} />;
       case 'cto':
-        return <CTOAnalysisForm />;
+        return <CTOAnalysisForm onBack={handleBack} />;
       case 'rma':
-        return <RMAForm />;
+        return <RMAForm onBack={handleBack} />;
       default:
         return <p>Selecione uma operação para iniciar</p>;
     }

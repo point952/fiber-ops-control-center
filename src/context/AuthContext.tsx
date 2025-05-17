@@ -8,6 +8,7 @@ interface User {
   username: string;
   role: UserRole;
   name: string;
+  email?: string; // Added email as optional property
 }
 
 interface AuthContextType {
@@ -31,21 +32,24 @@ const DEFAULT_USERS = [
     username: 'admin',
     password: '#point#123',
     role: 'admin' as UserRole,
-    name: 'Administrador'
+    name: 'Administrador',
+    email: 'admin@example.com'
   },
   {
     id: '2',
     username: 'operator',
     password: 'operator123',
     role: 'operator' as UserRole,
-    name: 'Operador Padrão'
+    name: 'Operador Padrão',
+    email: 'operator@example.com'
   },
   {
     id: '3',
     username: 'tech',
     password: 'tech123',
     role: 'technician' as UserRole,
-    name: 'Técnico Padrão'
+    name: 'Técnico Padrão',
+    email: 'tech@example.com'
   }
 ];
 
