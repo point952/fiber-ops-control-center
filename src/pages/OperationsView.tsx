@@ -8,6 +8,7 @@ import Footer from '@/components/Footer';
 import IndexTabs from './IndexTabs';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
+import { toast } from "sonner";
 
 const OperationsView = () => {
   const navigate = useNavigate();
@@ -24,6 +25,15 @@ const OperationsView = () => {
   useEffect(() => {
     if (location.state?.activeTab) {
       setActiveTab(location.state.activeTab);
+      
+      // Show a toast notification when the tab changes
+      const tabLabels = {
+        installation: 'Instalação/Upgrade',
+        cto: 'Análise de CTO',
+        rma: 'RMA'
+      };
+      
+      toast.info(`Formulário de ${tabLabels[location.state.activeTab as keyof typeof tabLabels]} carregado`);
     }
   }, [location.state]);
   
