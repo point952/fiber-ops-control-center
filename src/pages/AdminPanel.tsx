@@ -27,7 +27,17 @@ const AdminPanel = () => {
   
   // Load users on component mount
   useEffect(() => {
-    setUsers(getAllUsers());
+    const loadUsers = async () => {
+      try {
+        const profilesData = await getAllUsers();
+        setUsers(profilesData);
+      } catch (error) {
+        console.error("Error loading users:", error);
+        toast.error("Erro ao carregar usuários");
+      }
+    };
+    
+    loadUsers();
   }, [getAllUsers]);
   
   const [showAddUser, setShowAddUser] = useState(false);
@@ -40,7 +50,7 @@ const AdminPanel = () => {
   
   const [editingUser, setEditingUser] = useState<User | null>(null);
 
-  const handleAddUser = () => {
+  const handleAddUser = async () => {
     if (!newUser.username || !newUser.name || !newUser.password) {
       toast.error("Por favor, preencha todos os campos");
       return;
@@ -48,10 +58,14 @@ const AdminPanel = () => {
     
     try {
       // Use AuthContext addUser function
-      addUser(newUser);
+      await addUser({
+        ...newUser,
+        email: newUser.username
+      });
       
       // Refresh users list
-      setUsers(getAllUsers());
+      const updatedUsers = await getAllUsers();
+      setUsers(updatedUsers);
       
       // Reset form
       setNewUser({ username: '', name: '', role: 'technician', password: '' });
@@ -62,18 +76,19 @@ const AdminPanel = () => {
     }
   };
 
-  const handleDeleteUser = (id: string) => {
+  const handleDeleteUser = async (id: string) => {
     if (id === '1') {
       toast.error("Não é possível excluir o usuário administrador");
       return;
     }
     
     // Use AuthContext deleteUser function
-    const success = deleteUser(id);
+    const success = await deleteUser(id);
     
     if (success) {
       // Refresh users list
-      setUsers(getAllUsers());
+      const updatedUsers = await getAllUsers();
+      setUsers(updatedUsers);
       toast.success("Usuário excluído com sucesso");
     } else {
       toast.error("Não foi possível excluir o usuário");
@@ -88,15 +103,16 @@ const AdminPanel = () => {
     setEditingUser(user);
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!editingUser) return;
     
     // Use AuthContext updateUser function
-    const success = updateUser(editingUser);
+    const success = await updateUser(editingUser);
     
     if (success) {
       // Refresh users list
-      setUsers(getAllUsers());
+      const updatedUsers = await getAllUsers();
+      setUsers(updatedUsers);
       setEditingUser(null);
       toast.success("Usuário atualizado com sucesso");
     } else {
