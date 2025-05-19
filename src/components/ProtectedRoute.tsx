@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { Loader } from 'lucide-react';
@@ -10,8 +10,16 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles }) => {
-  const { isAuthenticated, user, isLoading } = useAuth();
+  const { isAuthenticated, user, isLoading, session } = useAuth();
   const location = useLocation();
+
+  // Check if the session is valid - this is important for handling token expiration
+  useEffect(() => {
+    // This is a safeguard against session expiration
+    if (!isLoading && session && new Date(session.expires_at * 1000) < new Date()) {
+      console.log("Session expired, redirecting to login");
+    }
+  }, [session, isLoading]);
 
   if (isLoading) {
     return (

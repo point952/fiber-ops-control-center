@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { useNavigate, Navigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,23 +10,35 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from "sonner";
 
 const Login = () => {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { login, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Get the previous location or default to home
+  const from = location.state?.from?.pathname || '/';
 
   // Redirect based on role if already authenticated
-  if (isAuthenticated) {
-    if (user?.role === 'operator') {
-      return <Navigate to="/operador" />;
-    } else if (user?.role === 'technician') {
-      return <Navigate to="/" />;
-    } else if (user?.role === 'admin') {
-      return <Navigate to="/admin" />;
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      // Navigate to the previous location unless it was the login page
+      if (from === '/login') {
+        // Redirect based on user role
+        if (user.role === 'operator') {
+          navigate('/operador');
+        } else if (user.role === 'technician') {
+          navigate('/');
+        } else if (user.role === 'admin') {
+          navigate('/admin');
+        }
+      } else {
+        navigate(from);
+      }
     }
-  }
+  }, [isAuthenticated, user, navigate, from]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,11 +46,11 @@ const Login = () => {
     setIsLoading(true);
     
     try {
-      const success = await login(username, password);
+      const success = await login(email, password);
       
       if (success) {
         toast.success("Login realizado com sucesso!");
-        // Navigation will happen automatically due to the condition above
+        // Navigation will happen in the useEffect above
       } else {
         setError('Usuário ou senha incorretos');
         toast.error("Falha no login. Verifique suas credenciais.");
@@ -50,6 +62,11 @@ const Login = () => {
       setIsLoading(false);
     }
   };
+
+  // If already authenticated, useEffect will handle redirection
+  if (isAuthenticated && user) {
+    return null; // Return null to avoid flickering, useEffect will handle navigation
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-gray-100 to-gray-200 p-4">
@@ -69,13 +86,13 @@ const Login = () => {
             )}
             
             <div className="space-y-2">
-              <Label htmlFor="username">Nome de usuário</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
-                id="username"
-                type="text"
-                placeholder="Insira seu nome de usuário"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                id="email"
+                type="email"
+                placeholder="Insira seu email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
               />
             </div>
