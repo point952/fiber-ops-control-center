@@ -18,12 +18,23 @@ const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // Get the previous location or default to home
+  // Get the previous location or default to appropriate route based on role
   const from = location.state?.from?.pathname || '/';
+
+  // Debug log
+  useEffect(() => {
+    console.log("Login page auth state:", { 
+      isAuthenticated, 
+      userRole: user?.role, 
+      previousPath: from 
+    });
+  }, [isAuthenticated, user, from]);
 
   // Redirect based on role if already authenticated
   useEffect(() => {
     if (isAuthenticated && user) {
+      console.log(`User authenticated as ${user.role}, redirecting...`);
+      
       // Navigate to the previous location unless it was the login page
       if (from === '/login') {
         // Redirect based on user role
@@ -33,6 +44,8 @@ const Login = () => {
           navigate('/');
         } else if (user.role === 'admin') {
           navigate('/admin');
+        } else {
+          navigate('/'); // Default fallback
         }
       } else {
         navigate(from);
@@ -46,16 +59,20 @@ const Login = () => {
     setIsLoading(true);
     
     try {
+      console.log("Attempting login for:", email);
       const success = await login(email, password);
       
       if (success) {
         toast.success("Login realizado com sucesso!");
+        console.log("Login successful");
         // Navigation will happen in the useEffect above
       } else {
+        console.log("Login failed");
         setError('Usuário ou senha incorretos');
         toast.error("Falha no login. Verifique suas credenciais.");
       }
     } catch (err) {
+      console.error("Login error:", err);
       setError('Ocorreu um erro ao tentar fazer login');
       toast.error("Erro ao realizar login.");
     } finally {

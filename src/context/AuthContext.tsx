@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Session, User } from '@supabase/supabase-js';
@@ -20,7 +21,7 @@ interface AuthContextType {
   logout: () => void;
   isAuthenticated: boolean;
   isLoading: boolean;
-  getAllUsers: () => Profile[];
+  getAllUsers: () => Promise<Profile[]>;
   addUser: (newUser: Omit<Profile, 'id'> & { password: string }) => Promise<string>;
   updateUser: (user: Profile) => Promise<boolean>;
   deleteUser: (id: string) => Promise<boolean>;
@@ -35,9 +36,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Initialize auth state and set up auth state listener
   useEffect(() => {
-    // Set up auth state listener FIRST
+    // Set up auth state listener FIRST to avoid missing events
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
+        console.log("Auth state changed:", event);
         setSession(currentSession);
         
         if (currentSession?.user) {
@@ -56,6 +58,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               }
               
               if (profile) {
+                console.log("Profile loaded:", profile);
                 setUser({
                   id: profile.id,
                   username: profile.email || '',
@@ -63,6 +66,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                   name: profile.name || '',
                   email: profile.email
                 });
+              } else {
+                console.warn('No profile found for user:', currentSession.user.id);
               }
             } catch (error) {
               console.error('Error in profile fetch:', error);
@@ -78,6 +83,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const initializeAuth = async () => {
       try {
         const { data: { session: initialSession } } = await supabase.auth.getSession();
+        console.log("Initial session check:", initialSession ? "Found session" : "No session");
         setSession(initialSession);
         
         if (initialSession?.user) {
@@ -88,11 +94,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             .single();
           
           if (error) {
-            console.error('Error fetching user profile:', error);
+            console.error('Error fetching user profile during init:', error);
+            setIsLoading(false);
             return;
           }
           
           if (profile) {
+            console.log("Initial profile loaded:", profile);
             setUser({
               id: profile.id,
               username: profile.email || '',
@@ -140,23 +148,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { error } = await supabase.auth.signOut();
       if (error) {
         console.error('Logout error:', error);
+        toast.error("Erro ao fazer logout");
+      } else {
+        // Clear user state immediately to prevent flickering UI
+        setUser(null);
+        setSession(null);
       }
     } catch (error) {
       console.error('Logout exception:', error);
+      toast.error("Erro ao fazer logout");
     }
   };
 
-  // These functions are maintained for backward compatibility but use Supabase now
-  const getAllUsers = () => {
-    // This function would require admin privileges and a separate Edge Function in production
-    // Keeping the interface for compatibility
-    if (!user || user.role !== 'admin') {
+  // Get all users (admin only)
+  const getAllUsers = async () => {
+    try {
+      // Admin check
+      if (!user || user.role !== 'admin') {
+        console.warn("Non-admin tried to get all users");
+        return [];
+      }
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*');
+      
+      if (error) {
+        console.error('Error fetching users:', error);
+        return [];
+      }
+      
+      return data.map(profile => ({
+        id: profile.id,
+        username: profile.email || '',
+        role: profile.role as UserRole,
+        name: profile.name || '',
+        email: profile.email
+      }));
+    } catch (error) {
+      console.error('Get all users exception:', error);
       return [];
     }
-    
-    // We'll return the current user as a placeholder
-    // In a real implementation, you would fetch all users from Supabase
-    return user ? [user] : [];
   };
 
   const addUser = async (newUser: Omit<Profile, 'id'> & { password: string }) => {
@@ -167,13 +199,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       // Register user in Supabase Auth
-      const { data, error } = await supabase.auth.admin.createUser({
+      const { data, error } = await supabase.auth.signUp({
         email: newUser.email || newUser.username,
         password: newUser.password,
-        email_confirm: true, // Auto-confirm email for testing
-        user_metadata: {
-          name: newUser.name,
-          role: newUser.role
+        options: {
+          data: {
+            name: newUser.name,
+            role: newUser.role
+          }
         }
       });
 
@@ -181,6 +214,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error('Error creating user:', error);
         toast.error("Erro ao criar usuário");
         throw error;
+      }
+
+      if (!data.user) {
+        throw new Error('User creation failed');
       }
 
       return data.user.id;
@@ -227,11 +264,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const deleteUser = async (id: string) => {
     try {
       // Admin check
-      if (!user || user.role !== 'admin' || id === '1') {
-        return false; // Prevent deleting admin user
+      if (!user || user.role !== 'admin') {
+        return false;
       }
       
-      // In Supabase, deleting a user from auth will cascade to the profiles table
+      // Delete user from Supabase Auth
       const { error } = await supabase.auth.admin.deleteUser(id);
 
       if (error) {
