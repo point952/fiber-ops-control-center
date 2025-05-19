@@ -1,78 +1,79 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom';
-import { Toaster } from 'sonner';
-import Header from './components/Header';
-import Footer from './components/Footer';
-import OperatorHeader from './components/Operator/OperatorHeader';
-import ProtectedRoute from './components/ProtectedRoute';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import NotFound from './pages/NotFound';
 
-function App() {
-  return (
-    <BrowserRouter>
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import Index from "./pages/Index";
+import OperationsView from "./pages/OperationsView";
+import NotFound from "./pages/NotFound";
+import OperatorPanel from "./pages/OperatorPanel";
+import Login from "./pages/Login";
+import AdminPanel from "./pages/AdminPanel";
+import ProtectedRoute from "./components/ProtectedRoute";
+import TechnicianHistory from './pages/TechnicianHistory';
+import TechnicianMessages from './pages/TechnicianMessages';
+import TechnicianNotifications from './pages/TechnicianNotifications';
+
+const queryClient = new QueryClient();
+
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <TooltipProvider>
       <Toaster />
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        
-        {/* Protected routes for technicians */}
-        <Route path="/" element={
-          <ProtectedRoute allowedRoles={['technician', 'admin']}>
-            <div className="flex min-h-screen flex-col">
-              <Header />
-              <main className="flex-1">
-                <Outlet />
-              </main>
-              <Footer />
-            </div>
-          </ProtectedRoute>
-        }>
-          <Route index element={<div>Dashboard do Técnico</div>} />
-          <Route path="cto" element={<div>Análise de CTO</div>} />
-          <Route path="ceo" element={<div>Análise de CEO</div>} />
-          <Route path="profile" element={<div>Perfil do Usuário</div>} />
-        </Route>
-        
-        {/* Protected routes for operators */}
-        <Route path="/operador" element={
-          <ProtectedRoute allowedRoles={['operator', 'admin']}>
-            <div className="flex min-h-screen flex-col">
-              <OperatorHeader />
-              <main className="flex-1">
-                <Outlet />
-              </main>
-              <Footer />
-            </div>
-          </ProtectedRoute>
-        }>
-          <Route index element={<div>Dashboard do Operador</div>} />
-          <Route path="operations" element={<div>Operações</div>} />
-          <Route path="reports" element={<div>Relatórios</div>} />
-        </Route>
-        
-        {/* Protected routes for admin */}
-        <Route path="/admin" element={
-          <ProtectedRoute allowedRoles={['admin']}>
-            <div className="flex min-h-screen flex-col">
-              <Header />
-              <main className="flex-1">
-                <Outlet />
-              </main>
-              <Footer />
-            </div>
-          </ProtectedRoute>
-        }>
-          <Route index element={<div>Dashboard do Admin</div>} />
-          <Route path="users" element={<div>Gerenciar Usuários</div>} />
-          <Route path="settings" element={<div>Configurações</div>} />
-        </Route>
-        
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    </BrowserRouter>
-  );
-}
+      <Sonner />
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          
+          <Route path="/" element={
+            <ProtectedRoute allowedRoles={['technician', 'admin']}>
+              <Index />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/operations" element={
+            <ProtectedRoute allowedRoles={['technician', 'admin']}>
+              <OperationsView />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/history" element={
+            <ProtectedRoute allowedRoles={['technician', 'admin']}>
+              <TechnicianHistory />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/messages" element={
+            <ProtectedRoute allowedRoles={['technician', 'admin']}>
+              <TechnicianMessages />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/notifications" element={
+            <ProtectedRoute allowedRoles={['technician', 'admin']}>
+              <TechnicianNotifications />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/operador" element={
+            <ProtectedRoute allowedRoles={['operator', 'admin']}>
+              <OperatorPanel />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/admin" element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <AdminPanel />
+            </ProtectedRoute>
+          } />
+          
+          {/* Catch-all redirects to login */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </BrowserRouter>
+    </TooltipProvider>
+  </QueryClientProvider>
+);
 
 export default App;

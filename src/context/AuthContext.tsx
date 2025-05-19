@@ -1,293 +1,175 @@
 
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { Session, User } from '@supabase/supabase-js';
-import { toast } from "sonner";
 
 type UserRole = 'admin' | 'operator' | 'technician';
 
-interface Profile {
+interface User {
   id: string;
   username: string;
   role: UserRole;
   name: string;
-  email?: string;
+  email?: string; // Added email as optional property
 }
 
 interface AuthContextType {
-  user: Profile | null;
-  session: Session | null;
-  login: (email: string, password: string) => Promise<boolean>;
+  user: User | null;
+  login: (username: string, password: string) => Promise<boolean>;
   logout: () => void;
   isAuthenticated: boolean;
   isLoading: boolean;
-  getAllUsers: () => Promise<Profile[]>;
-  addUser: (newUser: Omit<Profile, 'id'> & { password: string }) => Promise<string>;
-  updateUser: (user: Profile) => Promise<boolean>;
-  deleteUser: (id: string) => Promise<boolean>;
+  getAllUsers: () => User[];
+  addUser: (newUser: Omit<User, 'id'> & { password: string }) => string;
+  updateUser: (user: User) => boolean;
+  deleteUser: (id: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Mock user database - in a real application, this would be stored in a secure backend
+const DEFAULT_USERS = [
+  {
+    id: '1',
+    username: 'admin',
+    password: '#point#123',
+    role: 'admin' as UserRole,
+    name: 'Administrador',
+    email: 'admin@example.com'
+  },
+  {
+    id: '2',
+    username: 'operator',
+    password: 'operator123',
+    role: 'operator' as UserRole,
+    name: 'Operador Padrão',
+    email: 'operator@example.com'
+  },
+  {
+    id: '3',
+    username: 'tech',
+    password: 'tech123',
+    role: 'technician' as UserRole,
+    name: 'Técnico Padrão',
+    email: 'tech@example.com'
+  }
+];
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<Profile | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [usersDb, setUsersDb] = useState<Array<User & { password: string }>>([]);
 
-  // Initialize auth state and set up auth state listener
+  // Initialize users on first load
   useEffect(() => {
-    // Set up auth state listener FIRST to avoid missing events
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, currentSession) => {
-        console.log("Auth state changed:", event);
-        setSession(currentSession);
-        
-        if (currentSession?.user) {
-          // Fetch user profile data separately to avoid recursive Supabase calls
-          setTimeout(async () => {
-            try {
-              const { data: profile, error } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', currentSession.user.id)
-                .single();
-              
-              if (error) {
-                console.error('Error fetching user profile:', error);
-                return;
-              }
-              
-              if (profile) {
-                console.log("Profile loaded:", profile);
-                setUser({
-                  id: profile.id,
-                  username: profile.email || '',
-                  role: profile.role as UserRole,
-                  name: profile.name || '',
-                  email: profile.email
-                });
-              } else {
-                console.warn('No profile found for user:', currentSession.user.id);
-              }
-            } catch (error) {
-              console.error('Error in profile fetch:', error);
-            }
-          }, 0);
-        } else {
-          setUser(null);
-        }
-      }
-    );
+    // Try to load users from localStorage, otherwise use default
+    const storedUsers = localStorage.getItem('users');
+    if (storedUsers) {
+      setUsersDb(JSON.parse(storedUsers));
+    } else {
+      setUsersDb(DEFAULT_USERS);
+      localStorage.setItem('users', JSON.stringify(DEFAULT_USERS));
+    }
 
-    // THEN check for existing session
-    const initializeAuth = async () => {
-      try {
-        const { data: { session: initialSession } } = await supabase.auth.getSession();
-        console.log("Initial session check:", initialSession ? "Found session" : "No session");
-        setSession(initialSession);
-        
-        if (initialSession?.user) {
-          const { data: profile, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', initialSession.user.id)
-            .single();
-          
-          if (error) {
-            console.error('Error fetching user profile during init:', error);
-            setIsLoading(false);
-            return;
-          }
-          
-          if (profile) {
-            console.log("Initial profile loaded:", profile);
-            setUser({
-              id: profile.id,
-              username: profile.email || '',
-              role: profile.role as UserRole,
-              name: profile.name || '',
-              email: profile.email
-            });
-          }
-        }
-      } catch (error) {
-        console.error('Error initializing auth:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    initializeAuth();
-    
-    return () => {
-      subscription.unsubscribe();
-    };
+    // Load current logged in user if available
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+    }
+    setIsLoading(false);
   }, []);
 
-  const login = async (email: string, password: string) => {
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-
-      if (error) {
-        console.error('Login error:', error);
-        return false;
-      }
-      
+  const login = async (username: string, password: string) => {
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    const foundUser = usersDb.find(u => u.username === username && u.password === password);
+    
+    if (foundUser) {
+      const { password, ...userWithoutPassword } = foundUser;
+      setUser(userWithoutPassword);
+      localStorage.setItem('user', JSON.stringify(userWithoutPassword));
       return true;
-    } catch (error) {
-      console.error('Login exception:', error);
-      return false;
     }
+    
+    return false;
   };
 
-  const logout = async () => {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        console.error('Logout error:', error);
-        toast.error("Erro ao fazer logout");
-      } else {
-        // Clear user state immediately to prevent flickering UI
-        setUser(null);
-        setSession(null);
-      }
-    } catch (error) {
-      console.error('Logout exception:', error);
-      toast.error("Erro ao fazer logout");
-    }
+  const logout = () => {
+    setUser(null);
+    localStorage.removeItem('user');
   };
 
-  // Get all users (admin only)
-  const getAllUsers = async () => {
-    try {
-      // Admin check
-      if (!user || user.role !== 'admin') {
-        console.warn("Non-admin tried to get all users");
-        return [];
-      }
-      
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*');
-      
-      if (error) {
-        console.error('Error fetching users:', error);
-        return [];
-      }
-      
-      return data.map(profile => ({
-        id: profile.id,
-        username: profile.email || '',
-        role: profile.role as UserRole,
-        name: profile.name || '',
-        email: profile.email
-      }));
-    } catch (error) {
-      console.error('Get all users exception:', error);
-      return [];
-    }
+  const getAllUsers = () => {
+    return usersDb.map(({ password, ...user }) => user);
   };
 
-  const addUser = async (newUser: Omit<Profile, 'id'> & { password: string }) => {
-    try {
-      // Admin check
-      if (!user || user.role !== 'admin') {
-        throw new Error('Only admins can add users');
-      }
-      
-      // Register user in Supabase Auth
-      const { data, error } = await supabase.auth.signUp({
-        email: newUser.email || newUser.username,
-        password: newUser.password,
-        options: {
-          data: {
-            name: newUser.name,
-            role: newUser.role
-          }
-        }
-      });
-
-      if (error) {
-        console.error('Error creating user:', error);
-        toast.error("Erro ao criar usuário");
-        throw error;
-      }
-
-      if (!data.user) {
-        throw new Error('User creation failed');
-      }
-
-      return data.user.id;
-    } catch (error) {
-      console.error('Add user exception:', error);
-      throw error;
+  const addUser = (newUser: Omit<User, 'id'> & { password: string }) => {
+    // Check if username is unique
+    if (usersDb.some(u => u.username === newUser.username)) {
+      throw new Error('Username already exists');
     }
+    
+    const newId = String(Date.now());
+    const userWithId = { ...newUser, id: newId };
+    
+    // Update state and localStorage
+    const updatedUsers = [...usersDb, userWithId];
+    setUsersDb(updatedUsers);
+    localStorage.setItem('users', JSON.stringify(updatedUsers));
+    
+    return newId;
   };
 
-  const updateUser = async (updatedUser: Profile) => {
-    try {
-      // Admin check or self-update check
-      if (!user || (user.role !== 'admin' && user.id !== updatedUser.id)) {
-        return false;
-      }
-      
-      // Update user profile in Supabase
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          name: updatedUser.name,
-          role: updatedUser.role,
-          email: updatedUser.email
-        })
-        .eq('id', updatedUser.id);
-
-      if (error) {
-        console.error('Error updating user:', error);
-        return false;
-      }
-      
-      // If updating the current user, update local state
-      if (user && user.id === updatedUser.id) {
-        setUser(updatedUser);
-      }
-      
-      return true;
-    } catch (error) {
-      console.error('Update user exception:', error);
-      return false;
+  const updateUser = (updatedUser: User) => {
+    // Find user in database
+    const userIndex = usersDb.findIndex(u => u.id === updatedUser.id);
+    
+    if (userIndex === -1) return false;
+    
+    // Get existing password since we don't modify it here
+    const existingPassword = usersDb[userIndex].password;
+    
+    // Create updated user with password
+    const userWithPassword = { ...updatedUser, password: existingPassword };
+    
+    // Update state and localStorage
+    const updatedUsers = [...usersDb];
+    updatedUsers[userIndex] = userWithPassword;
+    setUsersDb(updatedUsers);
+    localStorage.setItem('users', JSON.stringify(updatedUsers));
+    
+    // If the current user was updated, update that state too
+    if (user && user.id === updatedUser.id) {
+      setUser(updatedUser);
+      localStorage.setItem('user', JSON.stringify(updatedUser));
     }
+    
+    return true;
   };
 
-  const deleteUser = async (id: string) => {
-    try {
-      // Admin check
-      if (!user || user.role !== 'admin') {
-        return false;
-      }
-      
-      // Delete user from Supabase Auth
-      const { error } = await supabase.auth.admin.deleteUser(id);
-
-      if (error) {
-        console.error('Error deleting user:', error);
-        return false;
-      }
-      
-      return true;
-    } catch (error) {
-      console.error('Delete user exception:', error);
-      return false;
+  const deleteUser = (id: string) => {
+    // Don't allow deleting the admin user (id: 1)
+    if (id === '1') return false;
+    
+    // Check if user exists
+    if (!usersDb.some(u => u.id === id)) return false;
+    
+    // Update state and localStorage
+    const updatedUsers = usersDb.filter(u => u.id !== id);
+    setUsersDb(updatedUsers);
+    localStorage.setItem('users', JSON.stringify(updatedUsers));
+    
+    // If the deleted user was the current user, log out
+    if (user && user.id === id) {
+      logout();
     }
+    
+    return true;
   };
 
   return (
     <AuthContext.Provider 
       value={{ 
         user, 
-        session,
         login, 
         logout, 
         isAuthenticated: !!user,

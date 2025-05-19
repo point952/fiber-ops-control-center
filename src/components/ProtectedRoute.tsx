@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { Loader } from 'lucide-react';
@@ -10,27 +10,8 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles }) => {
-  const { isAuthenticated, user, isLoading, session } = useAuth();
+  const { isAuthenticated, user, isLoading } = useAuth();
   const location = useLocation();
-
-  // Add debug logging for auth state
-  useEffect(() => {
-    console.log("ProtectedRoute auth state:", { 
-      isAuthenticated, 
-      user, 
-      isLoading, 
-      sessionExists: !!session,
-      allowedRoles,
-      currentPath: location.pathname 
-    });
-  }, [isAuthenticated, user, isLoading, session, allowedRoles, location]);
-
-  // Check if the session is valid - this is important for handling token expiration
-  useEffect(() => {
-    if (!isLoading && session && new Date((session.expires_at || 0) * 1000) < new Date()) {
-      console.log("Session expired, redirecting to login");
-    }
-  }, [session, isLoading]);
 
   if (isLoading) {
     return (
@@ -42,13 +23,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles 
 
   if (!isAuthenticated) {
     // Redirect to login page but save the current location
-    console.log("Not authenticated, redirecting to login");
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   if (allowedRoles && user && !allowedRoles.includes(user.role)) {
-    console.log(`User role ${user.role} not allowed, redirecting to appropriate page`);
-    
     // If user doesn't have the required role, redirect based on their role
     if (user.role === 'operator') {
       return <Navigate to="/operador" replace />;
@@ -62,7 +40,6 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles 
     return <Navigate to="/login" replace />;
   }
 
-  console.log("Access granted to protected route");
   return <>{children}</>;
 };
 
