@@ -1,447 +1,233 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Operation, HistoryRecord } from './types';
-import { toast } from 'sonner';
-import { useAuth } from '@/context/AuthContext';
+import { Operation, HistoryRecord, OperationStatus } from './types';
+import { toast } from "sonner";
 
-interface OperationsContextProps {
+interface OperationsContextType {
   operations: Operation[];
   history: HistoryRecord[];
-  queue: Operation[];
   isLoading: boolean;
-  addOperation: (type: 'installation' | 'cto' | 'rma', data: Record<string, any>, technician: string, technicianId?: string) => Promise<void>;
-  updateOperationStatus: (id: string, status: Operation['status'], operator?: string) => Promise<void>;
-  assignOperation: (operationId: string, operatorName: string) => Promise<void>;
-  updateOperationFeedback: (id: string, feedback: string) => Promise<void>;
-  updateTechnicianResponse: (id: string, response: string) => Promise<void>;
-  completeOperation: (id: string, operator: string) => Promise<void>;
-  getUserOperations: (userId: string) => Operation[];
+  addOperation: (operation: Omit<Operation, 'id' | 'created_at'>) => Promise<void>;
+  updateOperation: (id: string, updates: Partial<Operation>) => Promise<void>;
+  getOperationsByTechnician: (technicianId: string) => Operation[];
+  getHistoryByTechnician: (technicianId: string) => HistoryRecord[];
   refreshOperations: () => Promise<void>;
-  getQueuePosition: (operationId: string) => number;
-  getEstimatedWaitTime: (operationId: string) => number;
-  sendOperatorMessage: (operationId: string, message: string) => Promise<void>;
+  refreshHistory: () => Promise<void>;
 }
 
-const OperationsContext = createContext<OperationsContextProps | undefined>(undefined);
+const OperationsContext = createContext<OperationsContextType | undefined>(undefined);
+
+export const useOperations = () => {
+  const context = useContext(OperationsContext);
+  if (!context) {
+    throw new Error('useOperations must be used within an OperationsProvider');
+  }
+  return context;
+};
 
 export const OperationsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [operations, setOperations] = useState<Operation[]>([]);
   const [history, setHistory] = useState<HistoryRecord[]>([]);
-  const [queue, setQueue] = useState<Operation[]>([]);
-  const { user, isAuthenticated } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
-
-  // Setup realtime subscription
-  useEffect(() => {
-    if (!isAuthenticated || !user) {
-      setOperations([]);
-      setHistory([]);
-      setQueue([]);
-      setIsLoading(false);
-      return;
-    }
-
-    let mounted = true;
-
-    const initializeData = async () => {
-      if (mounted) {
-        setIsLoading(true);
-        await fetchOperations();
-        await fetchHistory();
-        setIsLoading(false);
-      }
-    };
-
-    initializeData();
-
-    // Subscribe to operations changes
-    const operationsSubscription = supabase
-      .channel('operations_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'operations'
-        },
-        (payload) => {
-          if (!mounted) return;
-
-          console.log('Operations change:', payload);
-
-          switch (payload.eventType) {
-            case 'INSERT':
-              const newOperation = payload.new as Operation;
-              setOperations(prev => [newOperation, ...prev]);
-              if (newOperation.status === 'pending') {
-                setQueue(prev => [newOperation, ...prev]);
-              }
-              break;
-            
-            case 'UPDATE':
-              const updatedOperation = payload.new as Operation;
-              setOperations(prev => 
-                prev.map(op => op.id === updatedOperation.id ? updatedOperation : op)
-              );
-              setQueue(prev => {
-                if (updatedOperation.status === 'completed' || updatedOperation.status === 'cancelled') {
-                  return prev.filter(op => op.id !== updatedOperation.id);
-                } else if (updatedOperation.status === 'pending') {
-                  return prev.some(op => op.id === updatedOperation.id) 
-                    ? prev.map(op => op.id === updatedOperation.id ? updatedOperation : op)
-                    : [updatedOperation, ...prev];
-                } else {
-                  return prev.map(op => op.id === updatedOperation.id ? updatedOperation : op);
-                }
-              });
-              break;
-            
-            case 'DELETE':
-              const deletedId = payload.old.id;
-              setOperations(prev => prev.filter(op => op.id !== deletedId));
-              setQueue(prev => prev.filter(op => op.id !== deletedId));
-              break;
-          }
-        }
-      )
-      .subscribe();
-
-    // Subscribe to history changes
-    const historySubscription = supabase
-      .channel('history_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'operation_history'
-        },
-        (payload) => {
-          console.log('History change:', payload);
-          
-          switch (payload.eventType) {
-            case 'INSERT':
-              setHistory(prev => [payload.new as HistoryRecord, ...prev]);
-              break;
-            
-            case 'UPDATE':
-              setHistory(prev => 
-                prev.map(record => record.id === payload.new.id ? payload.new as HistoryRecord : record)
-              );
-              break;
-            
-            case 'DELETE':
-              setHistory(prev => prev.filter(record => record.id !== payload.old.id));
-              break;
-          }
-        }
-      )
-      .subscribe();
-
-    // Cleanup subscriptions
-    return () => {
-      mounted = false;
-      operationsSubscription.unsubscribe();
-      historySubscription.unsubscribe();
-    };
-  }, [isAuthenticated, user]);
 
   const fetchOperations = async () => {
     try {
-      const { data: operationsData, error: operationsError } = await supabase
+      console.log('Fetching operations...');
+      const { data, error } = await supabase
         .from('operations')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (operationsError) {
-        console.error('Error fetching operations:', operationsError);
-        throw operationsError;
+      if (error) {
+        console.error('Error fetching operations:', error);
+        toast.error('Erro ao carregar operações');
+        return;
       }
 
-      console.log('Fetched operations:', operationsData?.length);
-      setOperations(operationsData || []);
+      console.log('Operations fetched:', data);
       
-      // Update queue with only pending operations
-      const pendingOperations = operationsData?.filter(op => op.status === 'pending') || [];
-      setQueue(pendingOperations);
+      // Cast the data to match our Operation type
+      const typedOperations: Operation[] = data.map(op => ({
+        ...op,
+        type: op.type as 'installation' | 'cto' | 'rma',
+        status: op.status as OperationStatus,
+        data: op.data as Record<string, any>
+      }));
+      
+      setOperations(typedOperations);
     } catch (error) {
-      console.error('Error fetching operations:', error);
-      toast.error('Erro ao carregar operações');
+      console.error('Error in fetchOperations:', error);
+      toast.error('Erro inesperado ao carregar operações');
     }
   };
 
   const fetchHistory = async () => {
     try {
-      const { data: historyData, error: historyError } = await supabase
+      console.log('Fetching history...');
+      const { data, error } = await supabase
         .from('operation_history')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (historyError) {
-        console.error('Error fetching history:', historyError);
-        throw historyError;
+      if (error) {
+        console.error('Error fetching history:', error);
+        toast.error('Erro ao carregar histórico');
+        return;
       }
 
-      console.log('Fetched history:', historyData?.length);
-      setHistory(historyData || []);
+      console.log('History fetched:', data);
+      
+      // Cast the data to match our HistoryRecord type
+      const typedHistory: HistoryRecord[] = data.map(record => ({
+        ...record,
+        type: record.type as 'installation' | 'cto' | 'rma',
+        data: record.data as Record<string, any>
+      }));
+      
+      setHistory(typedHistory);
     } catch (error) {
-      console.error('Error fetching history:', error);
-      toast.error('Erro ao carregar histórico');
+      console.error('Error in fetchHistory:', error);
+      toast.error('Erro inesperado ao carregar histórico');
     }
+  };
+
+  // Set up realtime subscriptions
+  useEffect(() => {
+    const setupRealtimeSubscriptions = async () => {
+      try {
+        await fetchOperations();
+        await fetchHistory();
+        setIsLoading(false);
+
+        // Subscribe to operations changes
+        const operationsSubscription = supabase
+          .channel('operations-changes')
+          .on('postgres_changes', 
+            { event: '*', schema: 'public', table: 'operations' },
+            (payload) => {
+              console.log('Operations realtime update:', payload);
+              fetchOperations();
+            }
+          )
+          .subscribe();
+
+        // Subscribe to history changes
+        const historySubscription = supabase
+          .channel('history-changes')
+          .on('postgres_changes',
+            { event: '*', schema: 'public', table: 'operation_history' },
+            (payload) => {
+              console.log('History realtime update:', payload);
+              fetchHistory();
+            }
+          )
+          .subscribe();
+
+        return () => {
+          operationsSubscription.unsubscribe();
+          historySubscription.unsubscribe();
+        };
+      } catch (error) {
+        console.error('Error setting up realtime subscriptions:', error);
+        setIsLoading(false);
+      }
+    };
+
+    setupRealtimeSubscriptions();
+  }, []);
+
+  const addOperation = async (operation: Omit<Operation, 'id' | 'created_at'>) => {
+    try {
+      console.log('Adding operation:', operation);
+      
+      const { data, error } = await supabase
+        .from('operations')
+        .insert({
+          type: operation.type,
+          data: operation.data,
+          status: operation.status,
+          technician: operation.technician,
+          technician_id: operation.technician_id,
+          feedback: operation.feedback,
+          technician_response: operation.technician_response,
+          assigned_operator: operation.assigned_operator,
+          assigned_at: operation.assigned_at,
+          completed_by: operation.completed_by,
+          completed_at: operation.completed_at
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error adding operation:', error);
+        toast.error('Erro ao adicionar operação');
+        throw error;
+      }
+
+      console.log('Operation added successfully:', data);
+      toast.success('Operação adicionada com sucesso!');
+      await fetchOperations();
+    } catch (error) {
+      console.error('Error in addOperation:', error);
+      throw error;
+    }
+  };
+
+  const updateOperation = async (id: string, updates: Partial<Operation>) => {
+    try {
+      console.log('Updating operation:', id, updates);
+      
+      const { data, error } = await supabase
+        .from('operations')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating operation:', error);
+        toast.error('Erro ao atualizar operação');
+        throw error;
+      }
+
+      console.log('Operation updated successfully:', data);
+      toast.success('Operação atualizada com sucesso!');
+      await fetchOperations();
+    } catch (error) {
+      console.error('Error in updateOperation:', error);
+      throw error;
+    }
+  };
+
+  const getOperationsByTechnician = (technicianId: string): Operation[] => {
+    return operations.filter(op => op.technician_id === technicianId);
+  };
+
+  const getHistoryByTechnician = (technicianId: string): HistoryRecord[] => {
+    return history.filter(record => record.technician_id === technicianId);
   };
 
   const refreshOperations = async () => {
     await fetchOperations();
+  };
+
+  const refreshHistory = async () => {
     await fetchHistory();
   };
 
-  const addOperation = async (
-    type: 'installation' | 'cto' | 'rma',
-    data: Record<string, any>,
-    technician: string,
-    technicianId?: string
-  ) => {
-    try {
-      const { data: newOperation, error: operationError } = await supabase
-        .from('operations')
-        .insert([{
-          type,
-          data,
-          status: 'pending' as const,
-          technician_id: technicianId || user?.id,
-          technician,
-        }])
-        .select()
-        .single();
-
-      if (operationError) throw operationError;
-
-      console.log('Operation created:', newOperation);
-      toast.success('Operação criada com sucesso!');
-    } catch (error) {
-      console.error('Error creating operation:', error);
-      toast.error('Erro ao criar operação. Tente novamente.');
-      throw error;
-    }
-  };
-
-  const updateOperationStatus = async (id: string, status: Operation['status'], operator?: string) => {
-    try {
-      const updates: any = { status };
-
-      if (operator) {
-        updates.assigned_operator = operator;
-        updates.operator_id = user?.id;
-      }
-
-      if (status === 'in_progress') {
-        updates.assigned_at = new Date().toISOString();
-      }
-
-      if (status === 'completed') {
-        updates.completed_at = new Date().toISOString();
-        updates.completed_by = operator || user?.name;
-      }
-
-      const { error } = await supabase
-        .from('operations')
-        .update(updates)
-        .eq('id', id);
-
-      if (error) throw error;
-
-      console.log('Operation status updated:', id, status);
-      toast.success('Status atualizado com sucesso');
-
-      if (status === 'completed') {
-        const operation = operations.find(op => op.id === id);
-        if (operation) {
-          await saveToHistory({
-            ...operation,
-            status,
-            completed_at: updates.completed_at,
-            completed_by: updates.completed_by
-          });
-        }
-      }
-    } catch (error) {
-      console.error('Error updating operation status:', error);
-      toast.error('Erro ao atualizar status');
-      throw error;
-    }
-  };
-
-  const assignOperation = async (operationId: string, operatorName: string) => {
-    try {
-      const { error } = await supabase
-        .from('operations')
-        .update({
-          assigned_operator: operatorName,
-          operator_id: user?.id,
-          status: 'in_progress' as const,
-          assigned_at: new Date().toISOString(),
-        })
-        .eq('id', operationId);
-
-      if (error) throw error;
-      
-      console.log('Operation assigned:', operationId, operatorName);
-      toast.success('Operação atribuída com sucesso');
-    } catch (error) {
-      console.error('Error assigning operation:', error);
-      toast.error('Erro ao atribuir operação');
-      throw error;
-    }
-  };
-
-  const updateOperationFeedback = async (id: string, feedback: string) => {
-    try {
-      const { error } = await supabase
-        .from('operations')
-        .update({ feedback })
-        .eq('id', id);
-
-      if (error) throw error;
-      
-      console.log('Feedback updated:', id);
-      toast.success('Feedback enviado com sucesso');
-    } catch (error) {
-      console.error('Error updating feedback:', error);
-      toast.error('Erro ao enviar feedback');
-      throw error;
-    }
-  };
-
-  const updateTechnicianResponse = async (id: string, response: string) => {
-    try {
-      const { error } = await supabase
-        .from('operations')
-        .update({ technician_response: response })
-        .eq('id', id);
-
-      if (error) throw error;
-      
-      console.log('Technician response updated:', id);
-      toast.success('Resposta enviada com sucesso');
-    } catch (error) {
-      console.error('Error updating technician response:', error);
-      toast.error('Erro ao enviar resposta');
-      throw error;
-    }
-  };
-
-  const completeOperation = async (id: string, operator: string) => {
-    try {
-      const { error } = await supabase
-        .from('operations')
-        .update({ 
-          status: 'completed' as const,
-          completed_at: new Date().toISOString(),
-          completed_by: operator
-        })
-        .eq('id', id);
-
-      if (error) throw error;
-
-      const operation = operations.find(op => op.id === id);
-      if (operation) {
-        await saveToHistory({
-          ...operation,
-          status: 'completed' as const,
-          completed_at: new Date().toISOString(),
-          completed_by: operator
-        });
-      }
-
-      console.log('Operation completed:', id);
-      toast.success('Operação finalizada com sucesso');
-    } catch (error) {
-      console.error('Error completing operation:', error);
-      toast.error('Erro ao finalizar operação');
-      throw error;
-    }
-  };
-
-  const getUserOperations = (userId: string) => {
-    return operations.filter(op => op.technician_id === userId);
-  };
-
-  const getQueuePosition = (operationId: string): number => {
-    const position = queue.findIndex(op => op.id === operationId);
-    return position + 1;
-  };
-
-  const getEstimatedWaitTime = (operationId: string): number => {
-    const position = getQueuePosition(operationId);
-    const averageTimePerOperation = 15; // minutes
-    return position * averageTimePerOperation;
-  };
-
-  const sendOperatorMessage = async (operationId: string, message: string): Promise<void> => {
-    try {
-      console.log('Sending operator message:', operationId, message);
-      toast.success('Mensagem enviada com sucesso');
-    } catch (error) {
-      console.error('Error sending operator message:', error);
-      toast.error('Erro ao enviar mensagem');
-      throw error;
-    }
-  };
-
-  const saveToHistory = async (operation: Operation) => {
-    try {
-      const { error } = await supabase
-        .from('operation_history')
-        .insert([{
-          operation_id: operation.id,
-          type: operation.type,
-          data: operation.data,
-          created_at: operation.created_at,
-          completed_at: operation.completed_at || new Date().toISOString(),
-          technician: operation.technician,
-          technician_id: operation.technician_id,
-          operator: operation.assigned_operator || operation.completed_by || 'Sistema',
-          feedback: operation.feedback || '',
-          technician_response: operation.technician_response || ''
-        }]);
-
-      if (error) throw error;
-      console.log('Operation saved to history:', operation.id);
-    } catch (error) {
-      console.error('Error saving to history:', error);
-      throw error;
-    }
-  };
-
   return (
-    <OperationsContext.Provider
-      value={{
-        operations,
-        history,
-        queue,
-        isLoading,
-        addOperation,
-        updateOperationStatus,
-        assignOperation,
-        updateOperationFeedback,
-        updateTechnicianResponse,
-        completeOperation,
-        getUserOperations,
-        refreshOperations,
-        getQueuePosition,
-        getEstimatedWaitTime,
-        sendOperatorMessage
-      }}
-    >
+    <OperationsContext.Provider value={{
+      operations,
+      history,
+      isLoading,
+      addOperation,
+      updateOperation,
+      getOperationsByTechnician,
+      getHistoryByTechnician,
+      refreshOperations,
+      refreshHistory
+    }}>
       {children}
     </OperationsContext.Provider>
   );
-};
-
-export const useOperations = () => {
-  const context = useContext(OperationsContext);
-  if (context === undefined) {
-    throw new Error('useOperations must be used within an OperationsProvider');
-  }
-  return context;
 };
