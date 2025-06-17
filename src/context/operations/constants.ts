@@ -1,46 +1,53 @@
-// Operation types
-export const OPERATION_TYPES = {
-  INSTALLATION: 'installation',
-  CTO: 'cto',
-  RMA: 'rma'
-} as const;
 
-// Operation status
-export const OPERATION_STATUS = {
-  PENDING: 'pending',
-  IN_PROGRESS: 'in_progress',
-  COMPLETED: 'completed',
-  CANCELLED: 'cancelled'
-} as const;
+// Local storage keys
+export const STORAGE_KEY = 'operations_data';
+export const HISTORY_KEY = 'operations_history';
+export const USER_DB_PREFIX = 'technician_operations_';
 
-// Default operation data
-export const defaultOperationData = {
-  [OPERATION_TYPES.INSTALLATION]: {
-    Cliente: '',
-    Endereco: '',
-    Bairro: '',
-    Cidade: '',
-    Estado: '',
-    CEP: '',
-    Telefone: '',
-    Email: '',
-    Plano: '',
-    Equipamento: '',
-    Serial: '',
-    Coordenadas: '',
-    Observacoes: ''
+// Default operations data
+export const defaultOperations = [
+  {
+    id: '1',
+    type: 'installation' as const,
+    data: {
+      Cliente: 'João Silva',
+      Serviço: 'Nova Instalação',
+      Modelo: 'ONT-123',
+      Serial: 'ABC12345',
+      Endereço: 'Rua das Flores, 123',
+      Observações: 'Cliente prefere instalação no período da tarde'
+    },
+    createdAt: new Date('2023-05-10T10:30:00'),
+    status: 'pendente' as const,
+    technician: 'Técnico Padrão',
+    technicianId: '3'
   },
-  [OPERATION_TYPES.CTO]: {
-    cto: '',
-    bairro: '',
-    rua: '',
-    coordenadas: '',
-    observacoes: ''
+  {
+    id: '2',
+    type: 'cto' as const,
+    data: {
+      cto: 'CTO-987',
+      bairro: 'Centro',
+      rua: 'Av. Principal',
+      tipo: 'Aéreo',
+      portas: 8
+    },
+    createdAt: new Date('2023-05-11T14:15:00'),
+    status: 'pendente' as const,
+    technician: 'Técnico CTO',
+    technicianId: '3'
   },
-  [OPERATION_TYPES.RMA]: {
-    serial: '',
-    modelo: '',
-    problema: '',
-    observacoes: ''
+  {
+    id: '3',
+    type: 'rma' as const,
+    data: {
+      modelo: 'ONT-456',
+      serial: 'XYZ78901',
+      problema: 'Dispositivo não liga'
+    },
+    createdAt: new Date('2023-05-12T09:45:00'),
+    status: 'pendente' as const,
+    technician: 'Técnico RMA',
+    technicianId: '3'
   }
-};
+];

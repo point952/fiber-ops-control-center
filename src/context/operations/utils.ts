@@ -1,143 +1,98 @@
+
 import { HistoryRecord, Operation } from './types';
-import { supabase } from '@/lib/supabase';
+import { HISTORY_KEY, STORAGE_KEY, USER_DB_PREFIX, defaultOperations } from './constants';
 
-// Load operations from Supabase
-export const loadOperations = async (): Promise<Operation[]> => {
+// Load operations from local storage
+export const loadOperations = (): Operation[] => {
   try {
-    const { data: operations, error } = await supabase
-      .from('operations')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) throw error;
-
-    return operations.map(op => ({
-      ...op,
-      created_at: new Date(op.created_at),
-      assigned_at: op.assigned_at ? new Date(op.assigned_at) : undefined
-    }));
+    const storedOperations = localStorage.getItem(STORAGE_KEY);
+    if (storedOperations) {
+      // Parse and fix date objects that are stored as strings
+      const parsedOperations = JSON.parse(storedOperations);
+      return parsedOperations.map((op: any) => ({
+        ...op,
+        createdAt: new Date(op.createdAt),
+        assignedAt: op.assignedAt ? new Date(op.assignedAt) : undefined
+      }));
+    }
+    return defaultOperations;
   } catch (error) {
     console.error('Erro ao carregar operações:', error);
-    return [];
+    return defaultOperations;
   }
 };
 
-// Load history from Supabase
-export const loadHistory = async (): Promise<HistoryRecord[]> => {
+// Load history from local storage
+export const loadHistory = (): HistoryRecord[] => {
   try {
-    const { data: history, error } = await supabase
-      .from('operation_history')
-      .select('*')
-      .order('completed_at', { ascending: false });
-
-    if (error) throw error;
-
-    return history.map(record => ({
-      ...record,
-      created_at: new Date(record.created_at),
-      completed_at: new Date(record.completed_at)
-    }));
+    const storedHistory = localStorage.getItem(HISTORY_KEY);
+    if (storedHistory) {
+      const parsedHistory = JSON.parse(storedHistory);
+      return parsedHistory.map((record: any) => ({
+        ...record,
+        createdAt: new Date(record.createdAt),
+        completedAt: new Date(record.completedAt)
+      }));
+    }
+    return [];
   } catch (error) {
     console.error('Erro ao carregar histórico:', error);
     return [];
   }
 };
 
-// Save operation to Supabase
-export const saveOperation = async (operation: Operation): Promise<void> => {
-  try {
-    const { error } = await supabase
-      .from('operations')
-      .upsert({
-        ...operation,
-        created_at: new Date(operation.created_at).toISOString(),
-        assigned_at: operation.assigned_at ? new Date(operation.assigned_at).toISOString() : null,
-        updated_at: new Date().toISOString()
-      });
-
-    if (error) throw error;
-  } catch (error) {
-    console.error('Erro ao salvar operação:', error);
-    throw error;
-  }
+// Save operations to local storage
+export const saveOperations = (operations: Operation[]): void => {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(operations));
 };
 
-// Save history record to Supabase
-export const saveHistoryRecord = async (record: HistoryRecord): Promise<void> => {
-  try {
-    const { error } = await supabase
-      .from('operation_history')
-      .insert({
-        ...record,
-        created_at: new Date(record.created_at).toISOString(),
-        completed_at: new Date(record.completed_at).toISOString()
-      });
-
-    if (error) throw error;
-  } catch (error) {
-    console.error('Erro ao salvar histórico:', error);
-    throw error;
-  }
+// Save history to local storage
+export const saveHistory = (history: HistoryRecord[]): void => {
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
 };
 
-// Update technician's operations in Supabase
-export const updateTechnicianOperations = async (
+// Update technician's local database
+export const updateTechnicianLocalDatabase = (
   technicianId: string,
-  operations: Operation[]
-): Promise<void> => {
+  updater: (technicianOps: Operation[]) => Operation[]
+): void => {
   if (!technicianId) return;
   
+  const technicianKey = `${USER_DB_PREFIX}${technicianId}`;
   try {
-    const { error } = await supabase
-      .from('technician_operations')
-      .upsert({
-        technician_id: technicianId,
-        operations: operations.map(op => ({
-          ...op,
-          created_at: new Date(op.created_at).toISOString(),
-          assigned_at: op.assigned_at ? new Date(op.assigned_at).toISOString() : null
-        }))
-      });
-
-    if (error) throw error;
+    const existingOps = localStorage.getItem(technicianKey);
+    if (existingOps) {
+      let technicianOps = JSON.parse(existingOps);
+      technicianOps = updater(technicianOps);
+      localStorage.setItem(technicianKey, JSON.stringify(technicianOps));
+    }
   } catch (error) {
-    console.error('Erro ao atualizar operações do técnico:', error);
-    throw error;
+    console.error('Erro ao atualizar banco do técnico:', error);
   }
 };
 
-// Initialize technician's operations in Supabase
-export const initializeTechnicianOperations = async (
-  userId: string | undefined,
+// Initialize technician's local database
+export const initializeTechnicianDatabase = (
+  userId: string | undefined, 
   userName: string | undefined,
   operations: Operation[]
-): Promise<void> => {
+): void => {
   if (!userId) return;
   
-  try {
-    // Get existing technician operations
-    const { data: existingOps, error: fetchError } = await supabase
-      .from('technician_operations')
-      .select('operations')
-      .eq('technician_id', userId)
-      .single();
-
-    if (fetchError && fetchError.code !== 'PGRST116') throw fetchError;
-
-    if (!existingOps) {
-      // Initialize with any operations already in the system for this technician
-      const technicianOps = operations.filter(
-        op => op.technician_id === userId || op.technician === userName
-      );
-      
-      if (technicianOps.length > 0) {
-        await updateTechnicianOperations(userId, technicianOps);
-      } else {
-        await updateTechnicianOperations(userId, []);
-      }
+  const technicianKey = `${USER_DB_PREFIX}${userId}`;
+  
+  // Get existing technician operations or initialize
+  const existingOps = localStorage.getItem(technicianKey);
+  if (!existingOps) {
+    // Initialize with any operations already in the system for this technician
+    const technicianOps = operations.filter(
+      op => op.technicianId === userId || op.technician === userName
+    );
+    
+    if (technicianOps.length > 0) {
+      localStorage.setItem(technicianKey, JSON.stringify(technicianOps));
+    } else {
+      localStorage.setItem(technicianKey, JSON.stringify([]));
     }
-  } catch (error) {
-    console.error('Erro ao inicializar operações do técnico:', error);
-    throw error;
   }
 };

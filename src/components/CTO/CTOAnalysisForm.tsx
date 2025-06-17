@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -5,7 +6,7 @@ import CTOSplitterTypeSelector from './CTOSplitterTypeSelector';
 import CTOLocationForm from './CTOLocationForm';
 import CTOPortsForm from './CTOPortsForm';
 import TableGenerator from '../TableGenerator';
-import { useOperations } from '@/context/operations/OperationsContext';
+import { useOperations } from '@/context/OperationContext';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from "sonner";
 
@@ -82,7 +83,7 @@ const CTOAnalysisForm: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     }
   };
 
-  const submitAnalysis = async () => {
+  const submitAnalysis = () => {
     if (!user) {
       toast.error("Você precisa estar logado para enviar análises");
       return;
@@ -99,13 +100,7 @@ const CTOAnalysisForm: React.FC<{ onBack: () => void }> = ({ onBack }) => {
       };
       
       // Add the operation to the context
-      await addOperation({
-        type: 'cto',
-        data: operationData,
-        status: 'pending',
-        technician: user.name,
-        technician_id: user.id
-      });
+      addOperation('cto', operationData, user.name, user.id);
       
       toast.success("Análise de CTO enviada com sucesso!");
       

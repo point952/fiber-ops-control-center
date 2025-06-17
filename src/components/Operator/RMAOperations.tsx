@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useOperations } from '@/context/operations/OperationsContext';
+import { useOperations } from '@/context/OperationContext';
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,6 @@ import {
   RefreshCcw,
   AlertCircle
 } from 'lucide-react';
-import { OperationStatus, Operation } from '@/context/operations/types';
 
 interface RMAOperationsProps {
   onClaimTask?: (operationId: string) => void;
@@ -70,7 +69,7 @@ const RMAOperations = ({ onClaimTask }: RMAOperationsProps) => {
   
   // Start working on an operation
   const startWorking = (operationId: string) => {
-    updateOperationStatus(operationId, 'in_progress');
+    updateOperationStatus(operationId, 'em_analise');
     toast.info('Análise de RMA iniciada');
   };
   
@@ -83,18 +82,8 @@ const RMAOperations = ({ onClaimTask }: RMAOperationsProps) => {
   };
   
   // Check if current user is assigned to this operation
-  const isAssignedToMe = (operation: Operation) => {
-    return operation.assigned_operator === user?.name || operation.assigned_operator === user?.username;
-  };
-
-  const handleStatusChange = async (id: string, newStatus: OperationStatus) => {
-    try {
-      await updateOperationStatus(id, newStatus);
-      toast.success('Status atualizado com sucesso');
-    } catch (error) {
-      console.error('Erro ao atualizar status:', error);
-      toast.error('Erro ao atualizar status');
-    }
+  const isAssignedToMe = (operation: any) => {
+    return operation.assignedOperator === user?.name || operation.assignedOperator === user?.username;
   };
 
   return (
@@ -116,9 +105,9 @@ const RMAOperations = ({ onClaimTask }: RMAOperationsProps) => {
             <Card 
               key={operation.id} 
               className={`overflow-hidden border ${
-                operation.status === 'pending' 
+                operation.status === 'pendente' 
                   ? 'border-yellow-200' 
-                  : operation.status === 'in_progress'
+                  : operation.status === 'em_analise'
                     ? 'border-orange-300'
                     : 'border-green-300'
               } ${expandedOperations[operation.id] ? 'ring-2 ring-orange-400' : ''}`}
@@ -127,9 +116,9 @@ const RMAOperations = ({ onClaimTask }: RMAOperationsProps) => {
                 {/* Header */}
                 <div 
                   className={`p-4 cursor-pointer ${
-                    operation.status === 'pending' 
+                    operation.status === 'pendente' 
                       ? 'bg-yellow-50' 
-                      : operation.status === 'in_progress'
+                      : operation.status === 'em_analise'
                         ? 'bg-orange-50'
                         : 'bg-green-50'
                   }`}
@@ -146,16 +135,16 @@ const RMAOperations = ({ onClaimTask }: RMAOperationsProps) => {
                       </p>
                     </div>
                     <Badge variant={
-                      operation.status === 'pending' 
+                      operation.status === 'pendente' 
                         ? 'outline' 
-                        : operation.status === 'in_progress'
+                        : operation.status === 'em_analise'
                           ? 'secondary'
                           : 'default'
                     }>
-                      {operation.status === 'pending' 
-                        ? 'Pending' 
-                        : operation.status === 'in_progress'
-                          ? 'In Progress'
+                      {operation.status === 'pendente' 
+                        ? 'Pendente' 
+                        : operation.status === 'em_analise'
+                          ? 'Em Análise'
                           : 'Finalizado'
                       }
                     </Badge>
@@ -184,7 +173,7 @@ const RMAOperations = ({ onClaimTask }: RMAOperationsProps) => {
                       </div>
                       <div className="flex items-center text-sm text-gray-500">
                         <Clock className="h-4 w-4 mr-1" />
-                        <span>Criado em: {new Date(operation.created_at).toLocaleString('pt-BR')}</span>
+                        <span>Criado em: {new Date(operation.createdAt).toLocaleString('pt-BR')}</span>
                       </div>
                     </div>
 
@@ -202,10 +191,10 @@ const RMAOperations = ({ onClaimTask }: RMAOperationsProps) => {
                         </div>
                       )}
                       
-                      {operation.technician_response && (
+                      {operation.technicianResponse && (
                         <div className="bg-green-50 p-3 rounded mb-3">
                           <p className="text-xs text-green-600 mb-1">Resposta do técnico:</p>
-                          <p className="text-sm">{operation.technician_response}</p>
+                          <p className="text-sm">{operation.technicianResponse}</p>
                         </div>
                       )}
                       
@@ -228,11 +217,11 @@ const RMAOperations = ({ onClaimTask }: RMAOperationsProps) => {
                     </div>
 
                     <div className="border-t border-gray-100 pt-4 mt-4 flex justify-between">
-                      {operation.assigned_operator ? (
+                      {operation.assignedOperator ? (
                         <div className="text-sm">
                           <span className="font-medium">Atribuído a:</span>
                           <span className="ml-1">
-                            {operation.assigned_operator} {isAssignedToMe(operation) && '(você)'}
+                            {operation.assignedOperator} {isAssignedToMe(operation) && '(você)'}
                           </span>
                         </div>
                       ) : (
@@ -240,7 +229,7 @@ const RMAOperations = ({ onClaimTask }: RMAOperationsProps) => {
                       )}
                       
                       <div className="flex space-x-2">
-                        {!operation.assigned_operator && onClaimTask && (
+                        {!operation.assignedOperator && onClaimTask && (
                           <Button 
                             size="sm" 
                             variant="outline"
@@ -250,7 +239,7 @@ const RMAOperations = ({ onClaimTask }: RMAOperationsProps) => {
                           </Button>
                         )}
                         
-                        {isAssignedToMe(operation) && operation.status === 'pending' && (
+                        {isAssignedToMe(operation) && operation.status === 'pendente' && (
                           <Button 
                             size="sm"
                             variant="outline"
@@ -262,7 +251,7 @@ const RMAOperations = ({ onClaimTask }: RMAOperationsProps) => {
                           </Button>
                         )}
                         
-                        {isAssignedToMe(operation) && operation.status === 'in_progress' && (
+                        {isAssignedToMe(operation) && operation.status === 'em_analise' && (
                           <Button 
                             size="sm"
                             className="bg-green-600 hover:bg-green-700"

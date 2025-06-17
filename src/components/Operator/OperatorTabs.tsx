@@ -1,5 +1,6 @@
+
 import React from 'react';
-import { useOperations } from '../../context/operations/OperationsContext';
+import { useOperations } from '@/context/OperationContext';
 
 interface OperatorTabsProps {
   activeTab: 'installation' | 'cto' | 'rma';
@@ -9,9 +10,9 @@ interface OperatorTabsProps {
 const OperatorTabs: React.FC<OperatorTabsProps> = ({ activeTab, setActiveTab }) => {
   const { operations } = useOperations();
   
-  const pendingInstallations = operations.filter(op => op.type === 'installation' && op.status === 'pending').length;
-  const pendingCTOs = operations.filter(op => op.type === 'cto' && op.status === 'pending').length;
-  const pendingRMAs = operations.filter(op => op.type === 'rma' && op.status === 'pending').length;
+  const pendingInstallations = operations.filter(op => op.type === 'installation' && op.status === 'pendente').length;
+  const pendingCTOs = operations.filter(op => op.type === 'cto' && op.status === 'pendente').length;
+  const pendingRMAs = operations.filter(op => op.type === 'rma' && op.status === 'pendente').length;
 
   return (
     <div className="border-b border-gray-200">

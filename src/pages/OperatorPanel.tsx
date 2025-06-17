@@ -1,24 +1,26 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useOperations } from '../context/operations/OperationsContext';
-import { useAuth } from '../context/AuthContext';
-import OperatorHeader from '../components/Operator/OperatorHeader';
-import OperatorTabs from '../components/Operator/OperatorTabs';
-import InstallationOperations from '../components/Operator/InstallationOperations';
-import CTOAnalysisOperations from '../components/Operator/CTOAnalysisOperations';
-import RMAOperations from '../components/Operator/RMAOperations';
-import OperatorHistory from '../components/Operator/OperatorHistory';
-import { Badge } from '../components/ui/badge';
-import { Button } from '../components/ui/button';
+import { useOperations } from '@/context/OperationContext';
+import { useAuth } from '@/context/AuthContext';
+import OperatorHeader from '@/components/Operator/OperatorHeader';
+import OperatorTabs from '@/components/Operator/OperatorTabs';
+import InstallationOperations from '@/components/Operator/InstallationOperations';
+import CTOAnalysisOperations from '@/components/Operator/CTOAnalysisOperations';
+import RMAOperations from '@/components/Operator/RMAOperations';
+import OperatorHistory from '@/components/Operator/OperatorHistory';
+import OperatorMessaging from '@/components/Operator/OperatorMessaging';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Bell, Database, History } from 'lucide-react';
-import { useIsMobile } from '../hooks/use-mobile';
+import { useIsMobile } from '@/hooks/use-mobile';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from '../components/ui/dialog';
+} from '@/components/ui/dialog';
 import {
   Table,
   TableBody,
@@ -26,22 +28,14 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '../components/ui/table';
-import { supabase } from '../lib/supabase';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import OperationQueue from '@/components/Operator/OperationQueue';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import Header from '@/components/Header';
-import Footer from '@/components/Footer';
+} from '@/components/ui/table';
 
 type TabType = 'installation' | 'cto' | 'rma' | 'history';
 
 const OperatorPanel = () => {
-  const { user } = useAuth();
-  const { assignOperation } = useOperations();
-  
   const [activeTab, setActiveTab] = useState<TabType>('installation');
-  const { operations, history, refreshOperations } = useOperations();
+  const { operations, assignOperatorToOperation, history } = useOperations();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   
@@ -49,122 +43,97 @@ const OperatorPanel = () => {
   const [hasNewNotification, setHasNewNotification] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [showDbStats, setShowDbStats] = useState(false);
-  
+
   // Count pending operations for queue simulation
-  const pendingOperations = operations.filter(op => 
-    op.status === 'pending' || op.status === 'in_progress'
-  ).length;
+  const pendingOperations = operations.filter(op => op.status === 'pendente').length;
   
   // Count operations by type and status
   const stats = {
     installation: {
       total: operations.filter(op => op.type === 'installation').length,
-      pending: operations.filter(op => op.type === 'installation' && (op.status === 'pending' || op.status === 'in_progress')).length,
-      completed: operations.filter(op => op.type === 'installation' && op.status === 'completed').length,
+      pending: operations.filter(op => op.type === 'installation' && op.status === 'pendente').length,
+      inProgress: operations.filter(op => op.type === 'installation' && op.status === 'iniciando_provisionamento').length,
+      completed: operations.filter(op => op.type === 'installation' && op.status === 'provisionamento_finalizado').length,
     },
     cto: {
       total: operations.filter(op => op.type === 'cto').length,
-      pending: operations.filter(op => op.type === 'cto' && (op.status === 'pending' || op.status === 'in_progress')).length,
-      completed: operations.filter(op => op.type === 'cto' && op.status === 'completed').length,
+      pending: operations.filter(op => op.type === 'cto' && op.status === 'pendente').length,
+      inProgress: operations.filter(op => op.type === 'cto' && op.status === 'verificando').length,
+      completed: operations.filter(op => op.type === 'cto' && op.status === 'verificacao_finalizada').length,
     },
     rma: {
       total: operations.filter(op => op.type === 'rma').length,
-      pending: operations.filter(op => op.type === 'rma' && (op.status === 'pending' || op.status === 'in_progress')).length,
-      completed: operations.filter(op => op.type === 'rma' && op.status === 'completed').length,
+      pending: operations.filter(op => op.type === 'rma' && op.status === 'pendente').length,
+      inProgress: operations.filter(op => op.type === 'rma' && op.status === 'em_analise').length,
+      completed: operations.filter(op => op.type === 'rma' && op.status === 'finalizado').length,
     }
   };
 
   // Count assigned operations
-  const assignedOperations = operations.filter(op => op.assigned_operator).length;
+  const assignedOperations = operations.filter(op => op.assignedOperator).length;
   const assignedToCurrentOperator = operations.filter(
-    op => op.assigned_operator === user?.name || op.assigned_operator === user?.username
+    op => op.assignedOperator === user?.name || op.assignedOperator === user?.username
   ).length;
-
-  // Count today's history
-  const todayHistory = history.filter(h => {
-    const today = new Date();
-    const historyDate = new Date(h.created_at);
-    return historyDate.toDateString() === today.toDateString();
-  }).length;
   
   useEffect(() => {
-    // Subscribe to real-time updates
-    const operationsSubscription = supabase
-      .channel('operations_changes')
-      .on('postgres_changes', 
-        { 
-          event: '*', 
-          schema: 'public', 
-          table: 'operations' 
-        }, 
-        (payload) => {
-          console.log('Change received!', payload);
-          refreshOperations();
-          
-          // Check if it's a new operation
-          if (payload.eventType === 'INSERT') {
-            setHasNewNotification(true);
+    // Simulate queue position - in a real app this would come from the server
+    if (pendingOperations > 0) {
+      setQueuePosition(Math.floor(Math.random() * 3) + 1);
+    } else {
+      setQueuePosition(null);
+    }
+    
+    // Check for new operations to trigger notifications
+    const newOperationsCount = operations.filter(op => {
+      const creationTime = new Date(op.createdAt).getTime();
+      const now = new Date().getTime();
+      const isRecent = now - creationTime < 60000; // Operations added within the last minute
+      return isRecent;
+    }).length;
+    
+    if (newOperationsCount > 0 && operations.length > 0) {
+      setHasNewNotification(true);
+      
+      // Play notification sound if enabled
+      if (soundEnabled) {
+        try {
+          const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+          audio.volume = 0.5;
+          audio.play();
+        } catch (err) {
+          console.log('Error playing notification sound:', err);
+        }
+      }
+      
+      toast.info(`${newOperationsCount} nova(s) operação(ões) adicionada(s)!`, {
+        duration: 5000,
+        action: {
+          label: "Visualizar",
+          onClick: () => {
+            // Find the tab with the newest operation
+            const newest = [...operations].sort((a, b) => 
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            )[0];
             
-            // Play notification sound if enabled
-            if (soundEnabled) {
-              try {
-                const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-                audio.volume = 0.5;
-                audio.play();
-              } catch (err) {
-                console.log('Error playing notification sound:', err);
-              }
+            if (newest) {
+              setActiveTab(newest.type as TabType);
             }
-            
-            toast.info('Nova operação recebida!', {
-              duration: 5000,
-              action: {
-                label: "Visualizar",
-                onClick: () => {
-                  setActiveTab(payload.new.type as TabType);
-                }
-              }
-            });
           }
         }
-      )
-      .subscribe();
-
-    // Subscribe to history changes
-    const historySubscription = supabase
-      .channel('history_changes')
-      .on('postgres_changes', 
-        { 
-          event: '*', 
-          schema: 'public', 
-          table: 'operation_history' 
-        }, 
-        (payload) => {
-          console.log('History change received!', payload);
-          refreshOperations();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      operationsSubscription.unsubscribe();
-      historySubscription.unsubscribe();
-    };
-  }, [refreshOperations, soundEnabled]);
+      });
+    }
+  }, [operations, soundEnabled]);
   
   const dismissNotifications = () => {
     setHasNewNotification(false);
   };
 
   // Logic to assign/claim a task to the current operator
-  const handleClaimTask = async (operationId: string) => {
+  const claimTask = (operationId: string) => {
     if (!user) return;
     
-    try {
-      await assignOperation(operationId, user.name);
-    } catch (error) {
-      console.error('Error claiming task:', error);
-    }
+    assignOperatorToOperation(operationId, user.name);
+    toast.success(`Chamado atribuído a ${user.name}`);
   };
 
   // Update the tab list to include history
@@ -172,12 +141,12 @@ const OperatorPanel = () => {
     { value: 'installation', label: 'Instalações', count: stats.installation.total },
     { value: 'cto', label: 'CTOs', count: stats.cto.total },
     { value: 'rma', label: 'RMAs', count: stats.rma.total },
-    { value: 'history', label: 'Histórico', count: todayHistory }
+    { value: 'history', label: 'Histórico', count: history.length }
   ];
 
   const renderTabContent = () => {
     // Pass the claim task function to each operation component
-    const props = { onClaimTask: handleClaimTask };
+    const props = { onClaimTask: claimTask };
     
     switch (activeTab) {
       case 'installation':
@@ -196,18 +165,10 @@ const OperatorPanel = () => {
   // Only show appropriate controls based on user role
   const showControls = user?.role === 'operator' || user?.role === 'admin';
 
-  if (!user) {
-    return null;
-  }
-
-  const handleBack = () => {
-    navigate('/');
-  };
-
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-gray-50 to-gray-100">
       <OperatorHeader />
-      <main className="flex-grow container mx-auto px-4 py-8">
+      <main className="flex-grow py-8 px-4 container mx-auto">
         <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
           <div>
             <h1 className="text-2xl font-bold">Painel do Operador</h1>
@@ -259,31 +220,22 @@ const OperatorPanel = () => {
             >
               <History className="h-4 w-4" />
               <span>Histórico</span>
-              {todayHistory > 0 && (
-                <Badge variant="secondary" className="bg-amber-200">
-                  {todayHistory}
-                </Badge>
-              )}
             </button>
             
-            {user?.role === 'admin' && (
-              <button
-                onClick={() => setShowDbStats(true)}
-                className="bg-purple-100 text-purple-800 px-4 py-2 rounded-md hover:bg-purple-200 transition-colors flex items-center gap-2"
-              >
-                <Database className="h-4 w-4" />
-                <span>Estatísticas</span>
-              </button>
-            )}
+            <button
+              onClick={() => setShowDbStats(true)}
+              className="bg-purple-100 text-purple-800 px-4 py-2 rounded-md hover:bg-purple-200 transition-colors flex items-center gap-2"
+            >
+              <Database className="h-4 w-4" />
+              <span>Estatísticas</span>
+            </button>
             
-            {user?.role === 'admin' && (
-              <button
-                onClick={() => navigate('/')}
-                className="bg-blue-100 text-blue-800 px-4 py-2 rounded-md hover:bg-blue-200 transition-colors"
-              >
-                Voltar para Área do Técnico
-              </button>
-            )}
+            <button 
+              onClick={() => navigate('/')}
+              className="bg-blue-100 text-blue-800 px-4 py-2 rounded-md hover:bg-blue-200 transition-colors"
+            >
+              Voltar para Área do Técnico
+            </button>
           </div>
         </div>
 
@@ -294,8 +246,15 @@ const OperatorPanel = () => {
             <p className="text-2xl font-bold">{operations.length}</p>
             <div className="flex justify-between mt-2 text-xs">
               <span className="text-yellow-600">Pendentes: {pendingOperations}</span>
+              <span className="text-blue-600">Em Progresso: {operations.filter(op => 
+                op.status === 'iniciando_provisionamento' || 
+                op.status === 'verificando' || 
+                op.status === 'em_analise'
+              ).length}</span>
               <span className="text-green-600">Concluídos: {operations.filter(op => 
-                op.status === 'completed'
+                op.status === 'provisionamento_finalizado' || 
+                op.status === 'verificacao_finalizada' || 
+                op.status === 'finalizado'
               ).length}</span>
             </div>
           </div>
@@ -311,13 +270,13 @@ const OperatorPanel = () => {
           <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-100">
             <h3 className="text-sm font-medium text-gray-500 mb-1">Técnicos Ativos</h3>
             <p className="text-2xl font-bold">
-              {new Set(operations.map(op => op.technician_id)).size}
+              {new Set(operations.map(op => op.technician)).size}
             </p>
             <div className="mt-2 text-xs">
               <span className="text-blue-600">
                 Operações mais recentes: {operations.filter(op => {
                   const today = new Date();
-                  const opDate = new Date(op.created_at);
+                  const opDate = new Date(op.createdAt);
                   return opDate.toDateString() === today.toDateString();
                 }).length} hoje
               </span>
@@ -326,15 +285,15 @@ const OperatorPanel = () => {
           
           <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-100">
             <h3 className="text-sm font-medium text-gray-500 mb-1">Histórico</h3>
-            <p className="text-2xl font-bold">{todayHistory}</p>
+            <p className="text-2xl font-bold">{history.length}</p>
             <div className="mt-2 text-xs">
-              <span className="text-green-600">Operações finalizadas hoje</span>
+              <span className="text-green-600">Operações finalizadas</span>
             </div>
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="mb-6">
+        {/* Updated tabs to include history */}
+        <div className="flex overflow-x-auto pb-2">
           <div className="inline-flex rounded-lg bg-gray-100 p-1">
             {tabOptions.map((tab) => (
               <button
@@ -347,7 +306,7 @@ const OperatorPanel = () => {
                 onClick={() => setActiveTab(tab.value)}
               >
                 {tab.label}
-                {tab.count !== undefined && tab.count > 0 && (
+                {tab.count !== undefined && (
                   <span className={`ml-1.5 px-2 py-0.5 rounded text-xs ${
                     activeTab === tab.value
                       ? 'bg-blue-100 text-blue-800'
@@ -364,8 +323,120 @@ const OperatorPanel = () => {
         <div className="bg-white rounded-lg shadow-md mt-6 p-6">
           {renderTabContent()}
         </div>
+
+        {/* Messaging component */}
+        <OperatorMessaging />
+        
+        {/* Database Statistics Dialog */}
+        <Dialog open={showDbStats} onOpenChange={setShowDbStats}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>Estatísticas do Banco de Dados</DialogTitle>
+            </DialogHeader>
+            
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-medium mb-2">Resumo de Operações</h3>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead className="text-right">Total</TableHead>
+                      <TableHead className="text-right">Pendentes</TableHead>
+                      <TableHead className="text-right">Em Progresso</TableHead>
+                      <TableHead className="text-right">Concluídos</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell className="font-medium">Instalações</TableCell>
+                      <TableCell className="text-right">{stats.installation.total}</TableCell>
+                      <TableCell className="text-right">{stats.installation.pending}</TableCell>
+                      <TableCell className="text-right">{stats.installation.inProgress}</TableCell>
+                      <TableCell className="text-right">{stats.installation.completed}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="font-medium">Análise CTO</TableCell>
+                      <TableCell className="text-right">{stats.cto.total}</TableCell>
+                      <TableCell className="text-right">{stats.cto.pending}</TableCell>
+                      <TableCell className="text-right">{stats.cto.inProgress}</TableCell>
+                      <TableCell className="text-right">{stats.cto.completed}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="font-medium">RMA</TableCell>
+                      <TableCell className="text-right">{stats.rma.total}</TableCell>
+                      <TableCell className="text-right">{stats.rma.pending}</TableCell>
+                      <TableCell className="text-right">{stats.rma.inProgress}</TableCell>
+                      <TableCell className="text-right">{stats.rma.completed}</TableCell>
+                    </TableRow>
+                    <TableRow className="font-medium">
+                      <TableCell className="font-medium">TOTAL</TableCell>
+                      <TableCell className="text-right">
+                        {stats.installation.total + stats.cto.total + stats.rma.total}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {stats.installation.pending + stats.cto.pending + stats.rma.pending}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {stats.installation.inProgress + stats.cto.inProgress + stats.rma.inProgress}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {stats.installation.completed + stats.cto.completed + stats.rma.completed}
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+              
+              <div>
+                <h3 className="text-lg font-medium mb-2">Histórico</h3>
+                <div className="bg-gray-50 p-4 rounded-md border border-gray-200">
+                  <div className="flex justify-between mb-2">
+                    <span className="font-medium">Total de operações arquivadas:</span>
+                    <span>{history.length}</span>
+                  </div>
+                  <div className="flex justify-between mb-2">
+                    <span className="font-medium">Instalações finalizadas:</span>
+                    <span>{history.filter(h => h.type === 'installation').length}</span>
+                  </div>
+                  <div className="flex justify-between mb-2">
+                    <span className="font-medium">CTOs analisadas:</span>
+                    <span>{history.filter(h => h.type === 'cto').length}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium">RMAs processados:</span>
+                    <span>{history.filter(h => h.type === 'rma').length}</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div>
+                <h3 className="text-lg font-medium mb-2">Informações de Armazenamento</h3>
+                <div className="bg-gray-50 p-4 rounded-md border border-gray-200">
+                  <p className="mb-2">
+                    <span className="font-medium">Local de armazenamento:</span> LocalStorage do navegador
+                  </p>
+                  <p className="mb-2">
+                    <span className="font-medium">Tamanho aproximado:</span>{" "}
+                    {Math.round((JSON.stringify(operations).length / 1024) * 100) / 100} KB
+                  </p>
+                  <p className="mb-2">
+                    <span className="font-medium">Tamanho do histórico:</span>{" "}
+                    {Math.round((JSON.stringify(history).length / 1024) * 100) / 100} KB
+                  </p>
+                  <p className="mb-2">
+                    <span className="font-medium">Última atualização:</span>{" "}
+                    {new Date().toLocaleString()}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-3">
+                    Nota: Em um ambiente de produção, essas informações seriam armazenadas em um banco de dados servidor.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </main>
-      <Footer />
     </div>
   );
 };
