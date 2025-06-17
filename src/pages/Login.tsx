@@ -25,9 +25,24 @@ const Login = () => {
     if (!authLoading && isAuthenticated && user) {
       console.log('User authenticated, redirecting based on role:', user.role);
       
-      const redirectPath = user.role === 'admin' ? '/admin' : 
-                          user.role === 'operator' ? '/operator' : '/';
+      // Determinar redirecionamento baseado na role
+      let redirectPath = '/';
       
+      switch (user.role) {
+        case 'admin':
+          redirectPath = '/admin';
+          break;
+        case 'operator':
+          redirectPath = '/operator';
+          break;
+        case 'technician':
+          redirectPath = '/';
+          break;
+        default:
+          redirectPath = '/';
+      }
+      
+      console.log('Redirecting to:', redirectPath);
       navigate(redirectPath, { replace: true });
     }
   }, [isAuthenticated, user, authLoading, navigate]);
@@ -80,7 +95,7 @@ const Login = () => {
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-gray-100 to-gray-200 p-4">
         <Card className="w-full max-w-md">
           <CardContent className="p-6 text-center">
-            <p>Carregando...</p>
+            <p>Verificando autenticação...</p>
           </CardContent>
         </Card>
       </div>
@@ -93,7 +108,7 @@ const Login = () => {
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-gray-100 to-gray-200 p-4">
         <Card className="w-full max-w-md">
           <CardContent className="p-6 text-center">
-            <p>Redirecionando...</p>
+            <p>Redirecionando para {user.role === 'admin' ? 'painel administrativo' : user.role === 'operator' ? 'painel do operador' : 'página inicial'}...</p>
           </CardContent>
         </Card>
       </div>

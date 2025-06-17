@@ -1,5 +1,4 @@
-
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
 import { toast } from "sonner";
@@ -43,6 +42,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const fetchUserProfile = useCallback(async (userId: string) => {
+    try {
+      console.log('Fetching profile for user:', userId);
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching profile:', error);
+        setUser(null);
+        setIsLoading(false);
+        return;
+      }
+
+      if (profile) {
+        console.log('Profile fetched:', profile);
+        const normalizedRole = profile.role === 'operador' ? 'operator' : profile.role as UserRole;
+        setUser({
+          id: profile.id,
+          name: profile.name || 'Usuário',
+          role: normalizedRole,
+          email: profile.email,
+          username: profile.name || profile.email
+        });
+      }
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Error in fetchUserProfile:', error);
+      setUser(null);
+      setIsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     let isMounted = true;
 
@@ -53,11 +87,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(session);
       
       if (session?.user && event !== 'SIGNED_OUT') {
+        // Use setTimeout para evitar problemas de concorrência
         setTimeout(() => {
           if (isMounted) {
             fetchUserProfile(session.user.id);
           }
-        }, 0);
+        }, 100);
       } else {
         setUser(null);
         if (isMounted) {
@@ -106,41 +141,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       isMounted = false;
       subscription.unsubscribe();
     };
-  }, []);
-
-  const fetchUserProfile = async (userId: string) => {
-    try {
-      console.log('Fetching profile for user:', userId);
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (error) {
-        console.error('Error fetching profile:', error);
-        setUser(null);
-        setIsLoading(false);
-        return;
-      }
-
-      if (profile) {
-        console.log('Profile fetched:', profile);
-        setUser({
-          id: profile.id,
-          name: profile.name || 'Usuário',
-          role: profile.role as UserRole,
-          email: profile.email,
-          username: profile.name || profile.email
-        });
-      }
-      setIsLoading(false);
-    } catch (error) {
-      console.error('Error in fetchUserProfile:', error);
-      setUser(null);
-      setIsLoading(false);
-    }
-  };
+  }, [fetchUserProfile]);
 
   const getAllUsers = async (): Promise<UserProfile[]> => {
     try {
@@ -157,7 +158,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return profiles.map(profile => ({
         id: profile.id,
         name: profile.name || 'Usuário',
-        role: profile.role as UserRole,
+        role: (profile.role === 'operador' ? 'operator' : profile.role) as UserRole,
         email: profile.email,
         username: profile.name || profile.email
       }));
