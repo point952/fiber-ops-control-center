@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth, UserProfile } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -17,7 +18,7 @@ const AdminPanel = () => {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   
-  // Load users on component mount
+  // Carregar usuários quando o componente montar
   useEffect(() => {
     loadUsers();
   }, []);
@@ -57,13 +58,18 @@ const AdminPanel = () => {
     
     setIsLoading(true);
     try {
-      await addUser(newUser.email, newUser.password, newUser.name, newUser.role);
-      await loadUsers();
+      const success = await addUser(newUser.email, newUser.password, newUser.name, newUser.role);
       
-      // Reset form
-      setNewUser({ username: '', name: '', role: 'technician', password: '', email: '' });
-      setShowAddUser(false);
-      toast.success("Usuário adicionado com sucesso");
+      if (success) {
+        await loadUsers();
+        
+        // Resetar formulário
+        setNewUser({ username: '', name: '', role: 'technician', password: '', email: '' });
+        setShowAddUser(false);
+        toast.success("Usuário adicionado com sucesso");
+      } else {
+        toast.error("Erro ao adicionar usuário");
+      }
     } catch (error) {
       toast.error("Erro ao adicionar usuário: " + (error as Error).message);
     } finally {
@@ -72,8 +78,8 @@ const AdminPanel = () => {
   };
 
   const handleDeleteUser = async (id: string) => {
-    if (currentUser?.role === 'admin') {
-      toast.error("Não é possível excluir o usuário administrador");
+    if (currentUser?.id === id) {
+      toast.error("Não é possível excluir o próprio usuário");
       return;
     }
     
@@ -95,8 +101,8 @@ const AdminPanel = () => {
   };
 
   const startEditUser = (user: UserProfile) => {
-    if (currentUser?.role === 'admin') {
-      toast.error("Não é possível editar o usuário administrador");
+    if (currentUser?.id === user.id) {
+      toast.error("Não é possível editar o próprio usuário");
       return;
     }
     setEditingUser(user);
@@ -142,7 +148,6 @@ const AdminPanel = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>Nome</TableHead>
-                <TableHead>Usuário</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Função</TableHead>
                 <TableHead>Ações</TableHead>
@@ -152,7 +157,6 @@ const AdminPanel = () => {
               {users.map((user) => (
                 <TableRow key={user.id}>
                   <TableCell>{user.name}</TableCell>
-                  <TableCell>{user.username}</TableCell>
                   <TableCell>{user.email}</TableCell>
                   <TableCell>
                     {user.role === 'admin' ? 'Administrador' :
@@ -199,15 +203,6 @@ const AdminPanel = () => {
                   id="name"
                   value={newUser.name}
                   onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
-                  disabled={isLoading}
-                />
-              </div>
-              <div>
-                <Label htmlFor="username">Nome de Usuário</Label>
-                <Input
-                  id="username"
-                  value={newUser.username}
-                  onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
                   disabled={isLoading}
                 />
               </div>
@@ -280,15 +275,6 @@ const AdminPanel = () => {
                   id="edit-name"
                   value={editingUser.name || ''}
                   onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })}
-                  disabled={isLoading}
-                />
-              </div>
-              <div>
-                <Label htmlFor="edit-username">Nome de Usuário</Label>
-                <Input
-                  id="edit-username"
-                  value={editingUser.username || ''}
-                  onChange={(e) => setEditingUser({ ...editingUser, username: e.target.value })}
                   disabled={isLoading}
                 />
               </div>
