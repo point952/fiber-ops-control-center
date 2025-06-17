@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth, UserProfile } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -10,7 +9,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { toast } from "sonner";
 import { useNavigate } from 'react-router-dom';
 import { Trash2, PencilLine, UserPlus } from 'lucide-react';
-import { UserProfile } from '@/integrations/supabase/types';
 
 const AdminPanel = () => {
   const { user: currentUser, getAllUsers, addUser, updateUser, deleteUser } = useAuth();
@@ -59,7 +57,7 @@ const AdminPanel = () => {
     
     setIsLoading(true);
     try {
-      await addUser(newUser);
+      await addUser(newUser.email, newUser.password, newUser.name, newUser.role);
       await loadUsers();
       
       // Reset form
