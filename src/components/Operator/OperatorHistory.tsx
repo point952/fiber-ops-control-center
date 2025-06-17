@@ -1,6 +1,5 @@
-
 import React, { useState } from 'react';
-import { useOperations } from '@/context/OperationContext';
+import { useOperations } from '@/context/operations/OperationsContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FileText, Search, Filter } from 'lucide-react';
@@ -25,6 +24,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { HistoryRecord } from '@/context/operations/types';
 
 type HistoryFilterType = 'all' | 'installation' | 'cto' | 'rma';
 type SortOption = 'newest' | 'oldest' | 'technician' | 'type';
@@ -77,9 +77,9 @@ const OperatorHistory = () => {
   const sortedHistory = [...filteredHistory].sort((a, b) => {
     switch (sortBy) {
       case 'newest':
-        return new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime();
+        return new Date(b.completed_at).getTime() - new Date(a.completed_at).getTime();
       case 'oldest':
-        return new Date(a.completedAt).getTime() - new Date(b.completedAt).getTime();
+        return new Date(a.completed_at).getTime() - new Date(b.completed_at).getTime();
       case 'technician':
         return a.technician.localeCompare(b.technician);
       case 'type':
@@ -89,7 +89,7 @@ const OperatorHistory = () => {
     }
   });
   
-  const getDisplayName = (record: any) => {
+  const getDisplayName = (record: HistoryRecord) => {
     if (record.type === 'installation' && record.data.Cliente) {
       return record.data.Cliente;
     } else if (record.type === 'cto' && record.data.cto) {
@@ -177,13 +177,15 @@ const OperatorHistory = () => {
                   <TableCell className="font-medium">{getDisplayName(record)}</TableCell>
                   <TableCell>{getTypeLabel(record.type)}</TableCell>
                   <TableCell>{record.technician}</TableCell>
-                  <TableCell>{record.operator}</TableCell>
-                  <TableCell>{new Date(record.completedAt).toLocaleDateString('pt-BR', {
-                    day: '2-digit',
-                    month: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })}</TableCell>
+                  <TableCell>{record.operator || 'N/A'}</TableCell>
+                  <TableCell>
+                    {new Date(record.completed_at).toLocaleDateString('pt-BR', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </TableCell>
                   <TableCell className="text-right">
                     <Button 
                       variant="outline" 
@@ -243,15 +245,15 @@ const OperatorHistory = () => {
                     </div>
                     <div className="grid grid-cols-2">
                       <dt className="font-medium">Operador:</dt>
-                      <dd>{selectedRecord.operator}</dd>
+                      <dd>{selectedRecord.operator || 'N/A'}</dd>
                     </div>
                     <div className="grid grid-cols-2">
                       <dt className="font-medium">Criado em:</dt>
-                      <dd>{new Date(selectedRecord.createdAt).toLocaleString('pt-BR')}</dd>
+                      <dd>{new Date(selectedRecord.created_at).toLocaleString('pt-BR')}</dd>
                     </div>
                     <div className="grid grid-cols-2">
                       <dt className="font-medium">Finalizado em:</dt>
-                      <dd>{new Date(selectedRecord.completedAt).toLocaleString('pt-BR')}</dd>
+                      <dd>{new Date(selectedRecord.completed_at).toLocaleString('pt-BR')}</dd>
                     </div>
                   </dl>
                 </div>
@@ -276,10 +278,10 @@ const OperatorHistory = () => {
                 </div>
               )}
               
-              {selectedRecord.technicianResponse && (
+              {selectedRecord.technician_response && (
                 <div className="bg-green-50 p-4 rounded-md">
                   <h3 className="font-medium text-green-800 mb-2">Resposta do Técnico</h3>
-                  <p className="text-green-700">{selectedRecord.technicianResponse}</p>
+                  <p className="text-green-700">{selectedRecord.technician_response}</p>
                 </div>
               )}
             </div>

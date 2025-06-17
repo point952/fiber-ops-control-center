@@ -1,9 +1,9 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { useAuth } from '@/context/AuthContext';
-import { useOperations } from '@/context/OperationContext';
+import { useOperations } from '@/context/operations/OperationsContext';
 import { toast } from "sonner";
+import { supabase } from '@/lib/supabase';
 
 interface TableGeneratorProps {
   formData: Record<string, string>;
@@ -23,6 +23,13 @@ const TableGenerator: React.FC<TableGeneratorProps> = ({
   const [tableGenerated, setTableGenerated] = useState(false);
   const [generatedTable, setGeneratedTable] = useState('');
   const [submittedData, setSubmittedData] = useState<Record<string, string>>({});
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  // Gerar tabela automaticamente quando o componente montar
+  useEffect(() => {
+    generateTable();
+  }, []);
 
   const generateTable = () => {
     // Adiciona automaticamente o nome do técnico logado
@@ -84,16 +91,30 @@ const TableGenerator: React.FC<TableGeneratorProps> = ({
     }
   };
 
-  const sendToOperator = () => {
-    if (user) {
-      addOperation(type, submittedData, user.name, user.id);
-      toast.success("Solicitação enviada com sucesso para o operador!");
+  const submitAnalysis = async () => {
+    if (!user) {
+      toast.error("Você precisa estar logado para enviar análises");
+      return;
+    }
+    
+    setSubmitting(true);
+    
+    try {
+      await addOperation({
+        type,
+        data: formData,
+        status: 'pending',
+        technician: user.name,
+        technician_id: user.id
+      });
       
-      if (onBack) {
-        setTimeout(onBack, 1500);
-      }
-    } else {
-      toast.error("Você precisa estar logado para enviar a solicitação.");
+      toast.success("Análise enviada com sucesso!");
+      setShowSuccess(true);
+    } catch (error) {
+      console.error("Erro ao enviar análise:", error);
+      toast.error("Erro ao enviar análise. Tente novamente.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -107,18 +128,9 @@ const TableGenerator: React.FC<TableGeneratorProps> = ({
         >
           Voltar
         </Button>
-        
-        {!tableGenerated && (
-          <Button 
-            type="button" 
-            onClick={generateTable}
-          >
-            Gerar Tabela
-          </Button>
-        )}
       </div>
 
-      {tableGenerated ? (
+      {tableGenerated && (
         <div>
           <div className="p-4 border rounded-lg bg-gray-50 mb-4">
             <p className="text-sm text-gray-600 mb-2">Tabela gerada com sucesso:</p>
@@ -140,15 +152,11 @@ const TableGenerator: React.FC<TableGeneratorProps> = ({
             <Button
               type="button"
               variant="default"
-              onClick={sendToOperator}
+              onClick={submitAnalysis}
             >
               Enviar para Operador
             </Button>
           </div>
-        </div>
-      ) : (
-        <div className="p-8 border border-dashed rounded-lg text-center">
-          <p className="text-gray-500">Clique em "Gerar Tabela" para criar uma tabela com os dados informados.</p>
         </div>
       )}
     </div>

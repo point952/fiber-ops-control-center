@@ -1,8 +1,7 @@
-
-import { useState } from 'react';
-import { HistoryRecord, Operation, OperationStatus, OperationType } from './types';
-import { saveHistory, saveOperations, updateTechnicianLocalDatabase } from './utils';
+import { useState, useCallback } from 'react';
+import { HistoryRecord, Operation, OperationStatus } from './types';
 import { toast } from 'sonner';
+import { supabase } from '@/lib/supabase';
 
 export const useOperationsActions = (
   initialOperations: Operation[],
@@ -11,239 +10,235 @@ export const useOperationsActions = (
   const [operations, setOperations] = useState<Operation[]>(initialOperations);
   const [history, setHistory] = useState<HistoryRecord[]>(initialHistory);
 
-  // Save to localStorage whenever operations change
-  const updateOperations = (newOperations: Operation[]) => {
-    setOperations(newOperations);
-    saveOperations(newOperations);
-  };
-
-  // Save to localStorage whenever history changes
-  const updateHistory = (newHistory: HistoryRecord[]) => {
-    setHistory(newHistory);
-    saveHistory(newHistory);
-  };
-
-  const addOperation = (
-    type: OperationType, 
+  const addOperation = useCallback(async (
+    type: 'installation' | 'cto' | 'rma', 
     data: Record<string, any>, 
     technician: string, 
     technicianId?: string
   ) => {
-    const newOperation: Operation = {
-      id: String(Date.now()),
-      type,
-      data,
-      createdAt: new Date(),
-      status: 'pendente' as OperationStatus,
-      technician,
-      technicianId
-    };
-    
-    updateOperations([...operations, newOperation]);
-
-    // Also add to technician's individual database if applicable
-    if (technicianId) {
-      updateTechnicianLocalDatabase(technicianId, (technicianOps) => {
-        return [...technicianOps, newOperation];
-      });
-    }
-  };
-
-  const updateOperationStatus = (id: string, status: OperationStatus) => {
-    const newOperations = operations.map(op => 
-      op.id === id ? { ...op, status } : op
-    );
-    
-    updateOperations(newOperations);
-
-    // Update in technician's database if applicable
-    const operation = operations.find(op => op.id === id);
-    if (operation?.technicianId) {
-      updateTechnicianLocalDatabase(operation.technicianId, (technicianOps) => {
-        return technicianOps.map((op: Operation) => 
-          op.id === id ? { ...op, status } : op
-        );
-      });
-    }
-  };
-
-  const updateOperationFeedback = (id: string, feedback: string) => {
-    const newOperations = operations.map(op => 
-      op.id === id ? { ...op, feedback } : op
-    );
-    
-    updateOperations(newOperations);
-
-    // Update in technician's database if applicable
-    const operation = operations.find(op => op.id === id);
-    if (operation?.technicianId) {
-      updateTechnicianLocalDatabase(operation.technicianId, (technicianOps) => {
-        return technicianOps.map((op: Operation) => 
-          op.id === id ? { ...op, feedback } : op
-        );
-      });
-    }
-  };
-
-  const updateTechnicianResponse = (id: string, response: string) => {
-    const newOperations = operations.map(op => 
-      op.id === id ? { ...op, technicianResponse: response } : op
-    );
-    
-    updateOperations(newOperations);
-
-    // Update in technician's database if applicable
-    const operation = operations.find(op => op.id === id);
-    if (operation?.technicianId) {
-      updateTechnicianLocalDatabase(operation.technicianId, (technicianOps) => {
-        return technicianOps.map((op: Operation) => 
-          op.id === id ? { ...op, technicianResponse: response } : op
-        );
-      });
-    }
-  };
-
-  const assignOperatorToOperation = (id: string, operatorName: string) => {
-    const newOperations = operations.map(op => 
-      op.id === id ? { 
-        ...op, 
-        assignedOperator: operatorName,
-        assignedAt: new Date()
-      } : op
-    );
-    
-    updateOperations(newOperations);
-
-    // Update in technician's database if applicable
-    const operation = operations.find(op => op.id === id);
-    if (operation?.technicianId) {
-      updateTechnicianLocalDatabase(operation.technicianId, (technicianOps) => {
-        return technicianOps.map((op: Operation) => 
-          op.id === id ? { ...op, assignedOperator: operatorName, assignedAt: new Date() } : op
-        );
-      });
-    }
-  };
-
-  const unassignOperatorFromOperation = (id: string) => {
-    const newOperations = operations.map(op => {
-      if (op.id === id) {
-        const { assignedOperator, assignedAt, ...rest } = op;
-        return rest;
-      }
-      return op;
-    });
-    
-    updateOperations(newOperations);
-
-    // Update in technician's database if applicable
-    const operation = operations.find(op => op.id === id);
-    if (operation?.technicianId) {
-      updateTechnicianLocalDatabase(operation.technicianId, (technicianOps) => {
-        return technicianOps.map((op: Operation) => {
-          if (op.id === id) {
-            const { assignedOperator, assignedAt, ...rest } = op;
-            return rest;
-          }
-          return op;
-        });
-      });
-    }
-  };
-
-  const completeOperation = (id: string, operatorName: string) => {
-    // Find the operation to complete
-    const operation = operations.find(op => op.id === id);
-    
-    if (!operation) return;
-    
-    // Create a history record
-    const historyRecord: HistoryRecord = {
-      id: String(Date.now()),
-      operationId: operation.id,
-      type: operation.type,
-      data: operation.data,
-      createdAt: operation.createdAt,
-      completedAt: new Date(),
-      technician: operation.technician,
-      technicianId: operation.technicianId || '',
-      operator: operatorName,
-      feedback: operation.feedback,
-      technicianResponse: operation.technicianResponse
-    };
-    
-    // Add to history
-    updateHistory([...history, historyRecord]);
-    
-    // Remove from active operations
-    updateOperations(operations.filter(op => op.id !== id));
-    
-    // Update in technician's database
-    if (operation.technicianId) {
-      updateTechnicianLocalDatabase(operation.technicianId, (technicianOps) => {
-        // Update the operation status to indicate completion
-        return technicianOps.map((op: Operation) => {
-          if (op.id === id) {
-            const completionStatus = 
-              op.type === 'installation' ? 'provisionamento_finalizado' as OperationStatus :
-              op.type === 'cto' ? 'verificacao_finalizada' as OperationStatus :
-              'finalizado' as OperationStatus;
-            
-            return { 
-              ...op, 
-              status: completionStatus,
-              completedBy: operatorName,
-              completedAt: new Date()
-            };
-          }
-          return op;
-        });
-      });
-    }
-  };
-
-  const getOperationsByType = (type: OperationType) => {
-    return operations.filter(op => op.type === type);
-  };
-
-  const getHistoryByType = (type: OperationType) => {
-    return history.filter(record => record.type === type);
-  };
-
-  const getUserOperations = (technicianId: string) => {
-    const USER_DB_PREFIX = 'technician_operations_';
-    const technicianKey = `${USER_DB_PREFIX}${technicianId}`;
     try {
-      const existingOps = localStorage.getItem(technicianKey);
-      if (existingOps) {
-        const technicianOps = JSON.parse(existingOps);
-        return technicianOps.map((op: any) => ({
-          ...op,
-          createdAt: new Date(op.createdAt),
-          assignedAt: op.assignedAt ? new Date(op.assignedAt) : undefined,
-          completedAt: op.completedAt ? new Date(op.completedAt) : undefined
-        }));
-      }
-      // If no specific database, filter from main operations
-      return operations.filter(
-        op => op.technicianId === technicianId
-      );
-    } catch (error) {
-      console.error('Erro ao carregar operações do técnico:', error);
-      return [];
-    }
-  };
+      const { data: newOperation, error } = await supabase
+        .from('operations')
+        .insert({
+          type,
+          data,
+          technician_id: technicianId,
+          status: 'pending',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single();
 
-  const getPendingOperationsCount = (type?: OperationType) => {
-    if (type) {
-      return operations.filter(op => op.type === type && op.status === 'pendente').length;
+      if (error) throw error;
+
+      setOperations(prev => [newOperation, ...prev]);
+      toast.success('Operação adicionada com sucesso!');
+    } catch (error) {
+      console.error('Erro ao adicionar operação:', error);
+      toast.error('Erro ao adicionar operação');
+      throw error;
     }
-    return operations.filter(op => op.status === 'pendente').length;
-  };
+  }, []);
+
+  const updateOperationStatus = useCallback(async (id: string, status: OperationStatus) => {
+    try {
+      const { data: updatedOperation, error } = await supabase
+        .from('operations')
+        .update({ 
+          status,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setOperations(prev => prev.map(op => 
+        op.id === id ? updatedOperation : op
+      ));
+      
+      toast.success('Status atualizado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao atualizar status:', error);
+      toast.error('Erro ao atualizar status');
+      throw error;
+    }
+  }, []);
+
+  const updateOperationFeedback = useCallback(async (id: string, feedback: string) => {
+    try {
+      const { data: updatedOperation, error } = await supabase
+        .from('operations')
+        .update({ 
+          feedback,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setOperations(prev => prev.map(op => 
+        op.id === id ? updatedOperation : op
+      ));
+      
+      toast.success('Feedback atualizado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao atualizar feedback:', error);
+      toast.error('Erro ao atualizar feedback');
+      throw error;
+    }
+  }, []);
+
+  const updateTechnicianResponse = useCallback(async (id: string, response: string) => {
+    try {
+      const { data: updatedOperation, error } = await supabase
+        .from('operations')
+        .update({ 
+          technician_response: response,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setOperations(prev => prev.map(op => 
+        op.id === id ? updatedOperation : op
+      ));
+      
+      toast.success('Resposta enviada com sucesso!');
+    } catch (error) {
+      console.error('Erro ao atualizar resposta do técnico:', error);
+      toast.error('Erro ao enviar resposta');
+      throw error;
+    }
+  }, []);
+
+  const assignOperatorToOperation = useCallback(async (operationId: string, operatorName: string) => {
+    try {
+      const { data: updatedOperation, error } = await supabase
+        .from('operations')
+        .update({ 
+          assigned_operator: operatorName,
+          assigned_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', operationId)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setOperations(prev => prev.map(op => 
+        op.id === operationId ? updatedOperation : op
+      ));
+      
+      toast.success('Operador atribuído com sucesso!');
+    } catch (error) {
+      console.error('Erro ao atribuir operador:', error);
+      toast.error('Erro ao atribuir operador');
+      throw error;
+    }
+  }, []);
+
+  const unassignOperatorFromOperation = useCallback(async (operationId: string) => {
+    try {
+      const { data: updatedOperation, error } = await supabase
+        .from('operations')
+        .update({ 
+          assigned_operator: null,
+          assigned_at: null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', operationId)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setOperations(prev => prev.map(op => 
+        op.id === operationId ? updatedOperation : op
+      ));
+      
+      toast.success('Atribuição removida com sucesso!');
+    } catch (error) {
+      console.error('Erro ao remover atribuição:', error);
+      toast.error('Erro ao remover atribuição');
+      throw error;
+    }
+  }, []);
+
+  const completeOperation = useCallback(async (operationId: string, operatorName: string) => {
+    try {
+      const operation = operations.find(op => op.id === operationId);
+      if (!operation) throw new Error('Operação não encontrada');
+
+      // Criar registro no histórico
+      const { data: historyRecord, error: historyError } = await supabase
+        .from('operation_history')
+        .insert({
+          operation_id: operationId,
+          type: operation.type,
+          data: operation.data,
+          created_at: operation.created_at,
+          completed_at: new Date().toISOString(),
+          technician: operation.technician_id,
+          technician_id: operation.technician_id,
+          operator: operatorName,
+          feedback: operation.feedback,
+          technician_response: operation.technician_response
+        })
+        .select()
+        .single();
+
+      if (historyError) throw historyError;
+
+      // Remover operação da tabela de operações
+      const { error: deleteError } = await supabase
+        .from('operations')
+        .delete()
+        .eq('id', operationId);
+
+      if (deleteError) throw deleteError;
+
+      // Atualizar estados
+      setOperations(prev => prev.filter(op => op.id !== operationId));
+      setHistory(prev => [historyRecord, ...prev]);
+      
+      toast.success('Operação concluída com sucesso!');
+    } catch (error) {
+      console.error('Erro ao completar operação:', error);
+      toast.error('Erro ao concluir operação');
+      throw error;
+    }
+  }, [operations]);
+
+  const getOperationsByType = useCallback((type: 'installation' | 'cto' | 'rma') => {
+    return operations.filter(op => op.type === type);
+  }, [operations]);
+
+  const getPendingOperationsCount = useCallback(() => {
+    return operations.filter(op => op.status === 'pending').length;
+  }, [operations]);
+
+  const getUserOperations = useCallback((userId: string) => {
+    return operations.filter(op => op.technician_id === userId);
+  }, [operations]);
+
+  const getHistoryByType = useCallback((type: 'installation' | 'cto' | 'rma') => {
+    return history.filter(record => record.type === type);
+  }, [history]);
 
   return {
     operations,
     history,
+    setOperations,
+    setHistory,
     addOperation,
     updateOperationStatus,
     updateOperationFeedback,

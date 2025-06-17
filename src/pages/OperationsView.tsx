@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { useOperations } from '@/context/operations/OperationContext';
+import { useOperations } from '@/context/operations/OperationsContext';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import InstallationForm from '@/components/Installation/InstallationForm';

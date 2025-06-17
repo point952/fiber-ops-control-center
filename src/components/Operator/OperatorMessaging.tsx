@@ -1,9 +1,12 @@
-
 import React, { useState, useEffect } from 'react';
-import { useOperations } from '@/context/OperationContext';
+import { useOperations } from '@/context/operations/OperationsContext';
+import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { MessageSquare } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Bell, Send, AlertTriangle, MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   Sheet,
@@ -19,17 +22,21 @@ import {
   TabsTrigger,
 } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Badge } from '@/components/ui/badge';
+import { Operation } from '@/context/operations/types';
 
-const OperatorMessaging = () => {
-  const { operations, updateOperationFeedback } = useOperations();
+const OperatorMessaging: React.FC = () => {
+  const { operations, sendOperatorMessage, updateOperationFeedback } = useOperations();
+  const { user } = useAuth();
+  const [message, setMessage] = useState('');
+  const [selectedOperation, setSelectedOperation] = useState<string | null>(null);
+  const [unreadMessages, setUnreadMessages] = useState<Set<string>>(new Set());
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
   const [responseMap, setResponseMap] = useState<Record<string, string>>({});
   const [unreadResponses, setUnreadResponses] = useState<string[]>([]);
   
   // Filter operations with technician responses
-  const operationsWithResponses = operations.filter(op => op.technicianResponse);
+  const operationsWithResponses = operations.filter(op => op.technician_response);
   
   // Group operations by type
   const installationResponses = operationsWithResponses.filter(op => op.type === 'installation');
@@ -63,6 +70,32 @@ const OperatorMessaging = () => {
     }
   }, [isOpen]);
   
+  useEffect(() => {
+    // Configurar som de notificação
+    const audio = new Audio('/notification.mp3');
+    audio.load();
+
+    // Configurar intervalo para verificar novas mensagens
+    const interval = setInterval(() => {
+      const newUnreadMessages = new Set<string>();
+      
+      operations.forEach(operation => {
+        if (operation.operator_id === user?.id && operation.technician_response) {
+          newUnreadMessages.add(operation.id);
+        }
+      });
+
+      if (newUnreadMessages.size > unreadMessages.size) {
+        audio.play().catch(console.error);
+        toast.info('Você tem novas mensagens!');
+      }
+
+      setUnreadMessages(newUnreadMessages);
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [operations, user?.id, unreadMessages]);
+  
   const handleInputChange = (id: string, value: string) => {
     setResponseMap(prev => ({
       ...prev,
@@ -93,7 +126,7 @@ const OperatorMessaging = () => {
     }
   };
   
-  const getDisplayName = (operation: any) => {
+  const getDisplayName = (operation: Operation) => {
     if (operation.type === 'installation' && operation.data.Cliente) {
       return operation.data.Cliente;
     } else if (operation.type === 'cto' && operation.data.cto) {
@@ -104,7 +137,7 @@ const OperatorMessaging = () => {
     return 'N/A';
   };
   
-  const renderOperations = (operations: any[]) => {
+  const renderOperations = (operations: Operation[]) => {
     if (operations.length === 0) {
       return (
         <div className="p-8 text-center text-gray-500">
@@ -130,7 +163,7 @@ const OperatorMessaging = () => {
             </h4>
             <p className="text-sm text-gray-600">
               {getTypeLabel(op.type)} • {op.technician} • {
-                new Date(op.createdAt).toLocaleDateString('pt-BR', {
+                new Date(op.created_at).toLocaleDateString('pt-BR', {
                   day: '2-digit',
                   month: '2-digit',
                   hour: '2-digit',
@@ -143,7 +176,7 @@ const OperatorMessaging = () => {
         
         <div className="bg-white p-3 rounded border mb-3">
           <p className="text-gray-800 mb-2 text-sm font-medium">Resposta do Técnico:</p>
-          <p className="text-gray-700">{op.technicianResponse}</p>
+          <p className="text-gray-700">{op.technician_response}</p>
         </div>
         
         {op.feedback ? (
@@ -174,6 +207,21 @@ const OperatorMessaging = () => {
   
   const hasUnread = unreadResponses.length > 0;
 
+  const handleSendMessage = async () => {
+    if (!selectedOperation || !message.trim()) {
+      toast.error('Selecione uma operação e digite uma mensagem');
+      return;
+    }
+
+    try {
+      await sendOperatorMessage(selectedOperation, message);
+      setMessage('');
+      toast.success('Mensagem enviada com sucesso!');
+    } catch (error) {
+      toast.error('Erro ao enviar mensagem');
+    }
+  };
+
   return (
     <>
       <Sheet open={isOpen} onOpenChange={setIsOpen}>
@@ -202,36 +250,32 @@ const OperatorMessaging = () => {
             <SheetTitle>Mensagens dos Técnicos</SheetTitle>
           </SheetHeader>
           
-          <Tabs 
-            defaultValue="all" 
-            value={activeTab} 
-            onValueChange={setActiveTab}
-            className="flex-1 flex flex-col"
-          >
-            <TabsList className="grid grid-cols-4 px-4 pt-2">
+          <Tabs defaultValue="all" className="flex-1 flex flex-col">
+            <TabsList className="p-4">
               <TabsTrigger value="all" className="relative">
-                Todos
-                {hasUnread && <span className="absolute top-0 right-0 bg-red-500 h-2 w-2 rounded-full"></span>}
+                Todas
+                {hasUnread && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                    {unreadResponses.length}
+                  </span>
+                )}
               </TabsTrigger>
-              <TabsTrigger value="installation">Inst.</TabsTrigger>
-              <TabsTrigger value="cto">CTO</TabsTrigger>
-              <TabsTrigger value="rma">RMA</TabsTrigger>
+              <TabsTrigger value="installation">Instalações</TabsTrigger>
+              <TabsTrigger value="cto">CTOs</TabsTrigger>
+              <TabsTrigger value="rma">RMAs</TabsTrigger>
             </TabsList>
             
-            <ScrollArea className="flex-1 p-4">
-              <TabsContent value="all" className="mt-0">
+            <ScrollArea className="flex-1">
+              <TabsContent value="all" className="p-4">
                 {renderOperations(operationsWithResponses)}
               </TabsContent>
-              
-              <TabsContent value="installation" className="mt-0">
+              <TabsContent value="installation" className="p-4">
                 {renderOperations(installationResponses)}
               </TabsContent>
-              
-              <TabsContent value="cto" className="mt-0">
+              <TabsContent value="cto" className="p-4">
                 {renderOperations(ctoResponses)}
               </TabsContent>
-              
-              <TabsContent value="rma" className="mt-0">
+              <TabsContent value="rma" className="p-4">
                 {renderOperations(rmaResponses)}
               </TabsContent>
             </ScrollArea>
