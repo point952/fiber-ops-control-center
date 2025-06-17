@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -16,289 +15,319 @@ interface User {
   username: string;
   name: string;
   role: 'admin' | 'operator' | 'technician';
+  email?: string;
 }
 
 const AdminPanel = () => {
   const { user: currentUser, getAllUsers, addUser, updateUser, deleteUser } = useAuth();
   const navigate = useNavigate();
   
-  // Get users from AuthContext
   const [users, setUsers] = useState<User[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   
   // Load users on component mount
   useEffect(() => {
-    setUsers(getAllUsers());
-  }, [getAllUsers]);
+    loadUsers();
+  }, []);
+  
+  const loadUsers = async () => {
+    try {
+      const usersList = await getAllUsers();
+      setUsers(usersList);
+    } catch (error) {
+      console.error('Erro ao carregar usuários:', error);
+      toast.error("Erro ao carregar usuários");
+    }
+  };
   
   const [showAddUser, setShowAddUser] = useState(false);
-  const [newUser, setNewUser] = useState<Omit<User, 'id'> & { password: string }>({
+  const [newUser, setNewUser] = useState<Omit<User, 'id'> & { password: string; email: string }>({
     username: '',
     name: '',
     role: 'technician',
     password: '',
+    email: '',
   });
   
   const [editingUser, setEditingUser] = useState<User | null>(null);
 
-  const handleAddUser = () => {
-    if (!newUser.username || !newUser.name || !newUser.password) {
+  const handleAddUser = async () => {
+    if (!newUser.username || !newUser.name || !newUser.password || !newUser.email) {
       toast.error("Por favor, preencha todos os campos");
       return;
     }
     
+    setIsLoading(true);
     try {
-      // Use AuthContext addUser function
-      addUser(newUser);
-      
-      // Refresh users list
-      setUsers(getAllUsers());
+      await addUser(newUser);
+      await loadUsers();
       
       // Reset form
-      setNewUser({ username: '', name: '', role: 'technician', password: '' });
+      setNewUser({ username: '', name: '', role: 'technician', password: '', email: '' });
       setShowAddUser(false);
       toast.success("Usuário adicionado com sucesso");
     } catch (error) {
       toast.error("Erro ao adicionar usuário: " + (error as Error).message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleDeleteUser = (id: string) => {
-    if (id === '1') {
+  const handleDeleteUser = async (id: string) => {
+    if (currentUser?.role === 'admin') {
       toast.error("Não é possível excluir o usuário administrador");
       return;
     }
     
-    // Use AuthContext deleteUser function
-    const success = deleteUser(id);
-    
-    if (success) {
-      // Refresh users list
-      setUsers(getAllUsers());
-      toast.success("Usuário excluído com sucesso");
-    } else {
-      toast.error("Não foi possível excluir o usuário");
+    setIsLoading(true);
+    try {
+      const success = await deleteUser(id);
+      
+      if (success) {
+        await loadUsers();
+        toast.success("Usuário excluído com sucesso");
+      } else {
+        toast.error("Não foi possível excluir o usuário");
+      }
+    } catch (error) {
+      toast.error("Erro ao excluir usuário");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const startEditUser = (user: User) => {
-    if (user.id === '1') {
+    if (currentUser?.role === 'admin') {
       toast.error("Não é possível editar o usuário administrador");
       return;
     }
     setEditingUser(user);
   };
 
-  const handleSaveEdit = () => {
+  const handleUpdateUser = async () => {
     if (!editingUser) return;
     
-    // Use AuthContext updateUser function
-    const success = updateUser(editingUser);
-    
-    if (success) {
-      // Refresh users list
-      setUsers(getAllUsers());
-      setEditingUser(null);
-      toast.success("Usuário atualizado com sucesso");
-    } else {
-      toast.error("Não foi possível atualizar o usuário");
+    setIsLoading(true);
+    try {
+      const success = await updateUser(editingUser);
+      
+      if (success) {
+        await loadUsers();
+        setEditingUser(null);
+        toast.success("Usuário atualizado com sucesso");
+      } else {
+        toast.error("Não foi possível atualizar o usuário");
+      }
+    } catch (error) {
+      toast.error("Erro ao atualizar usuário");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
-      <header className="bg-gradient-to-r from-purple-700 to-purple-900 text-white py-4 px-6 shadow-lg">
-        <div className="container mx-auto flex justify-between items-center">
-          <div className="flex items-center space-x-3">
-            <div className="h-10 w-10 bg-white rounded-full flex items-center justify-center">
-              <span className="text-purple-800 font-bold text-lg">AD</span>
-            </div>
-            <div>
-              <h1 className="text-xl font-bold">Sistema de Gerenciamento</h1>
-              <p className="text-sm opacity-80">Painel de Administração</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <span className="text-sm">
-              Logado como: <strong>{currentUser?.name}</strong>
-            </span>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => navigate('/operador')}
-              className="bg-purple-800 text-white hover:bg-purple-900 border-purple-600"
-            >
-              Painel Operador
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => navigate('/')}
-              className="bg-purple-800 text-white hover:bg-purple-900 border-purple-600"
-            >
-              Área Técnica
-            </Button>
-          </div>
-        </div>
-      </header>
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Painel de Administração</h1>
+        <Button onClick={() => setShowAddUser(true)}>
+          <UserPlus className="mr-2 h-4 w-4" />
+          Adicionar Usuário
+        </Button>
+      </div>
 
-      <main className="container mx-auto py-8 px-4">
-        <Card className="mb-8 shadow-md">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-xl">Gerenciamento de Usuários</CardTitle>
-            <Button onClick={() => setShowAddUser(!showAddUser)}>
-              <UserPlus className="mr-2 h-4 w-4" />
-              {showAddUser ? "Cancelar" : "Adicionar Usuário"}
-            </Button>
-          </CardHeader>
-          <CardContent>
-            {showAddUser && (
-              <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-4">
-                <div>
-                  <Label htmlFor="username">Nome de Usuário</Label>
-                  <Input
-                    id="username"
-                    value={newUser.username}
-                    onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
-                    placeholder="Nome de usuário"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="name">Nome Completo</Label>
-                  <Input
-                    id="name"
-                    value={newUser.name}
-                    onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
-                    placeholder="Nome completo"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="role">Função</Label>
-                  <Select
-                    value={newUser.role}
-                    onValueChange={(value: 'admin' | 'operator' | 'technician') => 
-                      setNewUser({ ...newUser, role: value })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione uma função" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="technician">Técnico</SelectItem>
-                      <SelectItem value="operator">Operador</SelectItem>
-                      <SelectItem value="admin">Administrador</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="password">Senha</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={newUser.password}
-                    onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                    placeholder="Senha"
-                  />
-                </div>
-                <div className="col-span-full flex justify-end">
-                  <Button onClick={handleAddUser}>Salvar Usuário</Button>
-                </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Usuários do Sistema</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nome</TableHead>
+                <TableHead>Usuário</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Função</TableHead>
+                <TableHead>Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {users.map((user) => (
+                <TableRow key={user.id}>
+                  <TableCell>{user.name}</TableCell>
+                  <TableCell>{user.username}</TableCell>
+                  <TableCell>{user.email}</TableCell>
+                  <TableCell>
+                    {user.role === 'admin' ? 'Administrador' :
+                     user.role === 'operator' ? 'Operador' : 'Técnico'}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => startEditUser(user)}
+                        disabled={isLoading}
+                      >
+                        <PencilLine className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteUser(user.id)}
+                        disabled={isLoading}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Modal de Adicionar Usuário */}
+      {showAddUser && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle>Adicionar Novo Usuário</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="name">Nome</Label>
+                <Input
+                  id="name"
+                  value={newUser.name}
+                  onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+                  disabled={isLoading}
+                />
               </div>
-            )}
+              <div>
+                <Label htmlFor="username">Nome de Usuário</Label>
+                <Input
+                  id="username"
+                  value={newUser.username}
+                  onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
+                  disabled={isLoading}
+                />
+              </div>
+              <div>
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={newUser.email}
+                  onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                  disabled={isLoading}
+                />
+              </div>
+              <div>
+                <Label htmlFor="password">Senha</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={newUser.password}
+                  onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                  disabled={isLoading}
+                />
+              </div>
+              <div>
+                <Label htmlFor="role">Função</Label>
+                <Select
+                  value={newUser.role}
+                  onValueChange={(value: 'admin' | 'operator' | 'technician') => 
+                    setNewUser({ ...newUser, role: value })}
+                  disabled={isLoading}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="admin">Administrador</SelectItem>
+                    <SelectItem value="operator">Operador</SelectItem>
+                    <SelectItem value="technician">Técnico</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+            <CardFooter className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowAddUser(false)}
+                disabled={isLoading}
+              >
+                Cancelar
+              </Button>
+              <Button onClick={handleAddUser} disabled={isLoading}>
+                Adicionar
+              </Button>
+            </CardFooter>
+          </Card>
+        </div>
+      )}
 
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>ID</TableHead>
-                    <TableHead>Nome de Usuário</TableHead>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>Função</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {users.map((user) => (
-                    <TableRow key={user.id}>
-                      <TableCell>{user.id}</TableCell>
-                      <TableCell>
-                        {editingUser?.id === user.id ? (
-                          <Input
-                            value={editingUser.username}
-                            onChange={(e) => setEditingUser({ ...editingUser, username: e.target.value })}
-                          />
-                        ) : (
-                          user.username
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {editingUser?.id === user.id ? (
-                          <Input
-                            value={editingUser.name}
-                            onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })}
-                          />
-                        ) : (
-                          user.name
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {editingUser?.id === user.id ? (
-                          <Select
-                            value={editingUser.role}
-                            onValueChange={(value: 'admin' | 'operator' | 'technician') => 
-                              setEditingUser({ ...editingUser, role: value })
-                            }
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="technician">Técnico</SelectItem>
-                              <SelectItem value="operator">Operador</SelectItem>
-                              <SelectItem value="admin">Administrador</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          user.role === 'admin' 
-                            ? 'Administrador' 
-                            : user.role === 'operator'
-                              ? 'Operador'
-                              : 'Técnico'
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {editingUser?.id === user.id ? (
-                          <Button onClick={handleSaveEdit} size="sm">
-                            Salvar
-                          </Button>
-                        ) : (
-                          <div className="flex justify-end gap-2">
-                            <Button 
-                              onClick={() => startEditUser(user)} 
-                              size="icon" 
-                              variant="outline"
-                              disabled={user.id === '1'}
-                            >
-                              <PencilLine className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              onClick={() => handleDeleteUser(user.id)} 
-                              size="icon" 
-                              variant="destructive"
-                              disabled={user.id === '1'}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-      </main>
+      {/* Modal de Editar Usuário */}
+      {editingUser && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle>Editar Usuário</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="edit-name">Nome</Label>
+                <Input
+                  id="edit-name"
+                  value={editingUser.name}
+                  onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })}
+                  disabled={isLoading}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-username">Nome de Usuário</Label>
+                <Input
+                  id="edit-username"
+                  value={editingUser.username}
+                  onChange={(e) => setEditingUser({ ...editingUser, username: e.target.value })}
+                  disabled={isLoading}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-role">Função</Label>
+                <Select
+                  value={editingUser.role}
+                  onValueChange={(value: 'admin' | 'operator' | 'technician') => 
+                    setEditingUser({ ...editingUser, role: value })}
+                  disabled={isLoading}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="admin">Administrador</SelectItem>
+                    <SelectItem value="operator">Operador</SelectItem>
+                    <SelectItem value="technician">Técnico</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+            <CardFooter className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setEditingUser(null)}
+                disabled={isLoading}
+              >
+                Cancelar
+              </Button>
+              <Button onClick={handleUpdateUser} disabled={isLoading}>
+                Salvar
+              </Button>
+            </CardFooter>
+          </Card>
+        </div>
+      )}
     </div>
   );
 };

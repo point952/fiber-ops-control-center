@@ -1,9 +1,9 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { useAuth } from '@/context/AuthContext';
-import { useOperations } from '@/context/OperationContext';
+import { useOperations } from '@/context/operations/OperationsContext';
 import { toast } from "sonner";
+import { supabase } from '@/lib/supabase';
 
 interface TableGeneratorProps {
   formData: Record<string, string>;
@@ -23,6 +23,11 @@ const TableGenerator: React.FC<TableGeneratorProps> = ({
   const [tableGenerated, setTableGenerated] = useState(false);
   const [generatedTable, setGeneratedTable] = useState('');
   const [submittedData, setSubmittedData] = useState<Record<string, string>>({});
+
+  // Gerar tabela automaticamente quando o componente montar
+  useEffect(() => {
+    generateTable();
+  }, []);
 
   const generateTable = () => {
     // Adiciona automaticamente o nome do técnico logado
@@ -84,16 +89,66 @@ const TableGenerator: React.FC<TableGeneratorProps> = ({
     }
   };
 
-  const sendToOperator = () => {
-    if (user) {
-      addOperation(type, submittedData, user.name, user.id);
+  const sendToOperator = async () => {
+    if (!user) {
+      toast.error("Você precisa estar logado para enviar a solicitação.");
+      return;
+    }
+
+    try {
+      if (!user.id) {
+        throw new Error('ID do técnico não encontrado');
+      }
+
+      // Log the data being sent
+      console.log('Enviando dados:', {
+        type,
+        data: submittedData,
+        technician: user.name,
+        technicianId: user.id
+      });
+
+      // Criar a operação
+      await addOperation(type, submittedData, user.name, user.id);
+      
+      // Buscar a operação recém-criada
+      const { data: operations, error: fetchError } = await supabase
+        .from('operations')
+        .select('*')
+        .eq('technician_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (fetchError) {
+        throw fetchError;
+      }
+
+      if (operations) {
+        // Criar uma conversa para a operação
+        const { error: conversationError } = await supabase
+          .from('conversations')
+          .insert({
+            operation_id: operations.id,
+            technician_id: user.id,
+            operator_id: null, // Será atribuído quando um operador pegar a operação
+            status: 'active',
+            last_message_at: new Date().toISOString()
+          });
+
+        if (conversationError) {
+          console.error('Erro ao criar conversa:', conversationError);
+        }
+      }
+
       toast.success("Solicitação enviada com sucesso para o operador!");
       
       if (onBack) {
         setTimeout(onBack, 1500);
       }
-    } else {
-      toast.error("Você precisa estar logado para enviar a solicitação.");
+    } catch (error) {
+      console.error('Erro ao enviar para o operador:', error);
+      toast.error(error instanceof Error ? error.message : "Erro ao enviar solicitação. Tente novamente.");
     }
   };
 
@@ -107,18 +162,9 @@ const TableGenerator: React.FC<TableGeneratorProps> = ({
         >
           Voltar
         </Button>
-        
-        {!tableGenerated && (
-          <Button 
-            type="button" 
-            onClick={generateTable}
-          >
-            Gerar Tabela
-          </Button>
-        )}
       </div>
 
-      {tableGenerated ? (
+      {tableGenerated && (
         <div>
           <div className="p-4 border rounded-lg bg-gray-50 mb-4">
             <p className="text-sm text-gray-600 mb-2">Tabela gerada com sucesso:</p>
@@ -145,10 +191,6 @@ const TableGenerator: React.FC<TableGeneratorProps> = ({
               Enviar para Operador
             </Button>
           </div>
-        </div>
-      ) : (
-        <div className="p-8 border border-dashed rounded-lg text-center">
-          <p className="text-gray-500">Clique em "Gerar Tabela" para criar uma tabela com os dados informados.</p>
         </div>
       )}
     </div>

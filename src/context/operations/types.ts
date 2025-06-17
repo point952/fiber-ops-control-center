@@ -1,51 +1,84 @@
-
 // Define Types
-export type InstallationStatus = 'pendente' | 'iniciando_provisionamento' | 'provisionamento_finalizado';
-export type CTOStatus = 'pendente' | 'verificando' | 'verificacao_finalizada';
-export type RMAStatus = 'pendente' | 'em_analise' | 'finalizado';
-export type OperationType = 'installation' | 'cto' | 'rma';
-export type OperationStatus = InstallationStatus | CTOStatus | RMAStatus;
+export type OperationStatus = 
+  | 'pending'
+  | 'in_progress'
+  | 'completed'
+  | 'cancelled'
+  | 'verificando'
+  | 'iniciando_provisionamento';
+
+export interface Message {
+  id: string;
+  operation_id: string;
+  sender_id: string;
+  sender_name: string;
+  content: string;
+  created_at: string;
+  is_read: boolean;
+  is_operator: boolean;
+}
 
 export interface Operation {
   id: string;
-  type: OperationType;
+  type: 'installation' | 'cto' | 'rma';
   data: Record<string, any>;
-  createdAt: Date;
   status: OperationStatus;
-  feedback?: string;
-  technicianResponse?: string;
+  technician_id: string;
   technician: string;
-  technicianId?: string;
-  assignedOperator?: string;
-  assignedAt?: Date;
+  operator_id: string | null;
+  operator: string | null;
+  assigned_operator: string | null;
+  feedback: string | null;
+  technician_response: string | null;
+  created_at: string;
+  assigned_at: string | null;
+  completed_at: string | null;
+  updated_at: string;
+  messages?: Message[];
 }
 
 export interface HistoryRecord {
   id: string;
-  operationId: string;
-  type: OperationType;
+  operation_id: string;
+  type: 'installation' | 'cto' | 'rma';
   data: Record<string, any>;
-  createdAt: Date;
-  completedAt: Date;
+  created_at: string;
+  completed_at: string;
   technician: string;
-  technicianId: string;
-  operator: string;
+  technician_id: string;
+  operator?: string;
   feedback?: string;
-  technicianResponse?: string;
+  technician_response?: string;
+  status: OperationStatus;
 }
 
 export interface OperationContextProps {
   operations: Operation[];
-  addOperation: (type: OperationType, data: Record<string, any>, technician: string, technicianId?: string) => void;
-  updateOperationStatus: (id: string, status: OperationStatus) => void;
-  updateOperationFeedback: (id: string, feedback: string) => void;
-  updateTechnicianResponse: (id: string, response: string) => void;
-  getOperationsByType: (type: OperationType) => Operation[];
-  getPendingOperationsCount: (type?: OperationType) => number;
-  assignOperatorToOperation: (id: string, operatorName: string) => void;
-  unassignOperatorFromOperation: (id: string) => void;
-  completeOperation: (id: string, operatorName: string) => void;
-  getUserOperations: (technicianId: string) => Operation[];
   history: HistoryRecord[];
-  getHistoryByType: (type: OperationType) => HistoryRecord[];
+  addOperation: (operation: Omit<Operation, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
+  updateOperationStatus: (id: string, status: OperationStatus) => Promise<void>;
+  updateOperationFeedback: (id: string, feedback: string) => Promise<void>;
+  updateTechnicianResponse: (id: string, response: string) => Promise<void>;
+  assignOperatorToOperation: (id: string, operator: string) => Promise<void>;
+  unassignOperatorFromOperation: (id: string) => Promise<void>;
+  completeOperation: (id: string, operator: string) => Promise<void>;
+  getUserOperations: (userId: string) => Operation[];
+  refreshOperations: () => Promise<void>;
 }
+
+// Helper functions
+export const getOperationsByType = (operations: Operation[], type: Operation['type']) => {
+  return operations.filter(op => op.type === type);
+};
+
+export const getPendingOperationsCount = (operations: Operation[]) => {
+  return operations.filter(op => op.status === 'pending').length;
+};
+
+export const getUserOperations = (operations: Operation[], userId: string) => {
+  return operations.filter(op => op.technician_id === userId);
+};
+
+export const getHistoryByType = (history: HistoryRecord[], type: HistoryRecord['type']) => {
+  return history.filter(record => record.type === type);
+};

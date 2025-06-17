@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { useOperations } from '@/context/operations/OperationContext';
+import { useOperations } from '@/context/operations/OperationsContext';
 import {
   Table,
   TableBody,
@@ -80,9 +79,9 @@ const TechnicianHistory = () => {
   const sortedOperations = [...filteredOperations].sort((a, b) => {
     switch (sortBy) {
       case 'newest':
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       case 'oldest':
-        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
       case 'status':
         return a.status.localeCompare(b.status);
       case 'type':
@@ -113,26 +112,25 @@ const TechnicianHistory = () => {
   };
   
   const getStatusBadge = (operation: Operation) => {
-    // Get appropriate badge variant and text based on status
     let variant: "secondary" | "default" | "destructive" | "outline" = "outline";
     let text = '';
     
     switch (operation.status) {
-      case 'pendente':
+      case 'pending':
         variant = 'outline';
         text = 'Pendente';
         break;
-      case 'iniciando_provisionamento':
-      case 'verificando':
-      case 'em_analise':
+      case 'in_progress':
         variant = 'secondary';
         text = 'Em processamento';
         break;
-      case 'provisionamento_finalizado':
-      case 'verificacao_finalizada':
-      case 'finalizado':
+      case 'completed':
         variant = 'default';
         text = 'Finalizado';
+        break;
+      case 'cancelled':
+        variant = 'destructive';
+        text = 'Cancelado';
         break;
       default:
         variant = 'outline';
@@ -218,11 +216,13 @@ const TechnicianHistory = () => {
                   <TableCell className="font-medium">{getDisplayName(operation)}</TableCell>
                   <TableCell>{getTypeLabel(operation.type)}</TableCell>
                   <TableCell>{getStatusBadge(operation)}</TableCell>
-                  <TableCell>{new Date(operation.createdAt).toLocaleDateString('pt-BR', {
+                  <TableCell>{new Date(operation.created_at).toLocaleDateString('pt-BR', {
                     day: '2-digit',
-                    month: '2-digit'
+                    month: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
                   })}</TableCell>
-                  <TableCell>{operation.assignedOperator || '-'}</TableCell>
+                  <TableCell>{operation.assigned_operator || '-'}</TableCell>
                   <TableCell className="text-right">
                     <Button 
                       variant="outline"
@@ -283,18 +283,18 @@ const TechnicianHistory = () => {
                     </div>
                     <div className="grid grid-cols-2">
                       <dt className="font-medium">Criado em:</dt>
-                      <dd>{new Date(selectedOperation.createdAt).toLocaleString('pt-BR')}</dd>
+                      <dd>{new Date(selectedOperation.created_at).toLocaleString('pt-BR')}</dd>
                     </div>
-                    {selectedOperation.assignedOperator && (
+                    {selectedOperation.assigned_operator && (
                       <div className="grid grid-cols-2">
                         <dt className="font-medium">Operador:</dt>
-                        <dd>{selectedOperation.assignedOperator}</dd>
+                        <dd>{selectedOperation.assigned_operator}</dd>
                       </div>
                     )}
-                    {selectedOperation.assignedAt && (
+                    {selectedOperation.assigned_at && (
                       <div className="grid grid-cols-2">
                         <dt className="font-medium">Atribuído em:</dt>
-                        <dd>{new Date(selectedOperation.assignedAt).toLocaleString('pt-BR')}</dd>
+                        <dd>{new Date(selectedOperation.assigned_at).toLocaleString('pt-BR')}</dd>
                       </div>
                     )}
                   </dl>
@@ -302,7 +302,7 @@ const TechnicianHistory = () => {
               </div>
               
               {/* Communication Section */}
-              <div className="mt-4">
+              <div className="bg-gray-50 p-4 rounded-md">
                 <h4 className="font-medium mb-2">Comunicação</h4>
                 
                 {selectedOperation.feedback ? (
@@ -314,10 +314,10 @@ const TechnicianHistory = () => {
                   <p className="text-gray-500">Nenhum feedback do operador.</p>
                 )}
                 
-                {selectedOperation.technicianResponse && (
+                {selectedOperation.technician_response && (
                   <div className="bg-green-50 p-4 rounded-md">
                     <p className="text-sm font-medium text-green-700 mb-1">Sua Resposta:</p>
-                    <p className="text-gray-800">{selectedOperation.technicianResponse}</p>
+                    <p className="text-gray-800">{selectedOperation.technician_response}</p>
                   </div>
                 )}
               </div>

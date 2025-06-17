@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useOperations } from '@/context/OperationContext';
+import React, { useState, useEffect } from 'react';
+import { useOperations } from '@/context/operations/OperationsContext';
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ import {
   MessageSquare,
   RefreshCcw
 } from 'lucide-react';
+import { Operation, OperationStatus } from '@/context/operations/types';
 
 interface InstallationOperationsProps {
   onClaimTask?: (operationId: string) => void;
@@ -25,6 +26,12 @@ const InstallationOperations = ({ onClaimTask }: InstallationOperationsProps) =>
   
   // Filter to show only installation operations
   const installationOperations = operations.filter(op => op.type === 'installation');
+  
+  // Log operations for debugging
+  useEffect(() => {
+    console.log('Todas as operações:', operations);
+    console.log('Operações de instalação:', installationOperations);
+  }, [operations, installationOperations]);
   
   // State for handling feedback text inputs
   const [feedbackText, setFeedbackText] = useState<Record<string, string>>({});
@@ -95,7 +102,17 @@ const InstallationOperations = ({ onClaimTask }: InstallationOperationsProps) =>
   
   // Check if current user is assigned to this operation
   const isAssignedToMe = (operation: any) => {
-    return operation.assignedOperator === user?.name || operation.assignedOperator === user?.username;
+    return operation.assigned_operator === user?.name || operation.assigned_operator === user?.username;
+  };
+
+  const handleStatusChange = async (id: string, newStatus: OperationStatus) => {
+    try {
+      await updateOperationStatus(id, newStatus);
+      toast.success('Status atualizado com sucesso');
+    } catch (error) {
+      console.error('Erro ao atualizar status:', error);
+      toast.error('Erro ao atualizar status');
+    }
   };
 
   return (
@@ -117,9 +134,9 @@ const InstallationOperations = ({ onClaimTask }: InstallationOperationsProps) =>
             <Card 
               key={operation.id} 
               className={`overflow-hidden border ${
-                operation.status === 'pendente' 
+                operation.status === 'pending' 
                   ? 'border-yellow-200' 
-                  : operation.status === 'iniciando_provisionamento'
+                  : operation.status === 'in_progress'
                     ? 'border-blue-300'
                     : 'border-green-300'
               } ${expandedOperations[operation.id] ? 'ring-2 ring-blue-400' : ''}`}
@@ -128,9 +145,9 @@ const InstallationOperations = ({ onClaimTask }: InstallationOperationsProps) =>
                 {/* Header */}
                 <div 
                   className={`p-4 cursor-pointer ${
-                    operation.status === 'pendente' 
+                    operation.status === 'pending' 
                       ? 'bg-yellow-50' 
-                      : operation.status === 'iniciando_provisionamento'
+                      : operation.status === 'in_progress'
                         ? 'bg-blue-50'
                         : 'bg-green-50'
                   }`}
@@ -146,16 +163,16 @@ const InstallationOperations = ({ onClaimTask }: InstallationOperationsProps) =>
                       </p>
                     </div>
                     <Badge variant={
-                      operation.status === 'pendente' 
+                      operation.status === 'pending' 
                         ? 'outline' 
-                        : operation.status === 'iniciando_provisionamento'
+                        : operation.status === 'in_progress'
                           ? 'secondary'
                           : 'default'
                     }>
-                      {operation.status === 'pendente' 
-                        ? 'Pendente' 
-                        : operation.status === 'iniciando_provisionamento'
-                          ? 'Provisionando'
+                      {operation.status === 'pending' 
+                        ? 'Pending' 
+                        : operation.status === 'in_progress'
+                          ? 'In Progress'
                           : 'Finalizado'
                       }
                     </Badge>
@@ -184,7 +201,7 @@ const InstallationOperations = ({ onClaimTask }: InstallationOperationsProps) =>
                       </div>
                       <div className="flex items-center text-sm text-gray-500">
                         <Clock className="h-4 w-4 mr-1" />
-                        <span>Criado em: {new Date(operation.createdAt).toLocaleString('pt-BR')}</span>
+                        <span>Criado em: {new Date(operation.created_at).toLocaleString('pt-BR')}</span>
                       </div>
                     </div>
 
@@ -202,10 +219,10 @@ const InstallationOperations = ({ onClaimTask }: InstallationOperationsProps) =>
                         </div>
                       )}
                       
-                      {operation.technicianResponse && (
+                      {operation.technician_response && (
                         <div className="bg-green-50 p-3 rounded mb-3">
                           <p className="text-xs text-green-600 mb-1">Resposta do técnico:</p>
-                          <p className="text-sm">{operation.technicianResponse}</p>
+                          <p className="text-sm">{operation.technician_response}</p>
                         </div>
                       )}
                       
@@ -228,11 +245,11 @@ const InstallationOperations = ({ onClaimTask }: InstallationOperationsProps) =>
                     </div>
 
                     <div className="border-t border-gray-100 pt-4 mt-4 flex justify-between">
-                      {operation.assignedOperator ? (
+                      {operation.assigned_operator ? (
                         <div className="text-sm">
                           <span className="font-medium">Atribuído a:</span>
                           <span className="ml-1">
-                            {operation.assignedOperator} {isAssignedToMe(operation) && '(você)'}
+                            {operation.assigned_operator} {isAssignedToMe(operation) && '(você)'}
                           </span>
                         </div>
                       ) : (
@@ -240,7 +257,7 @@ const InstallationOperations = ({ onClaimTask }: InstallationOperationsProps) =>
                       )}
                       
                       <div className="flex space-x-2">
-                        {!operation.assignedOperator && onClaimTask && (
+                        {!operation.assigned_operator && onClaimTask && (
                           <Button 
                             size="sm" 
                             variant="outline"
@@ -250,7 +267,7 @@ const InstallationOperations = ({ onClaimTask }: InstallationOperationsProps) =>
                           </Button>
                         )}
                         
-                        {isAssignedToMe(operation) && operation.status === 'pendente' && (
+                        {isAssignedToMe(operation) && operation.status === 'pending' && (
                           <Button 
                             size="sm"
                             variant="outline"
@@ -262,7 +279,7 @@ const InstallationOperations = ({ onClaimTask }: InstallationOperationsProps) =>
                           </Button>
                         )}
                         
-                        {isAssignedToMe(operation) && operation.status === 'iniciando_provisionamento' && (
+                        {isAssignedToMe(operation) && operation.status === 'in_progress' && (
                           <Button 
                             size="sm"
                             className="bg-green-600 hover:bg-green-700"

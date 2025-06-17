@@ -1,11 +1,11 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { useOperations } from '@/context/operations/OperationContext';
+import { useOperations } from '@/context/operations/OperationsContext';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import MainMenu from '@/components/MainMenu';
+import { TechnicianList } from '@/components/TechnicianList';
 import { toast } from "sonner";
 import { 
   Dialog,
@@ -18,12 +18,12 @@ import { UserProfile } from '@/components/Technician/UserProfile';
 const Index = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const { getPendingOperationsCount, getUserOperations } = useOperations();
+  const { operations } = useOperations();
   
   // Get pending operations counts for menu indicators
-  const pendingInstallations = getPendingOperationsCount('installation');
-  const pendingCTOs = getPendingOperationsCount('cto');
-  const pendingRMAs = getPendingOperationsCount('rma');
+  const pendingInstallations = operations.filter(op => op.type === 'installation' && op.status === 'pending').length;
+  const pendingCTOs = operations.filter(op => op.type === 'cto' && op.status === 'pending').length;
+  const pendingRMAs = operations.filter(op => op.type === 'rma' && op.status === 'pending').length;
   
   // Track if modals are open
   const [profileModalOpen, setProfileModalOpen] = useState(false);
@@ -82,6 +82,10 @@ const Index = () => {
         <div className="mb-6 text-center md:text-left">
           <h1 className="text-3xl font-bold mb-1">Painel do Técnico</h1>
           <p className="text-gray-600">Bem-vindo, {user.name}</p>
+        </div>
+        
+        <div className="mb-6">
+          <TechnicianList />
         </div>
         
         <MainMenu 

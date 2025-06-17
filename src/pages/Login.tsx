@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -10,23 +9,36 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from "sonner";
 
 const Login = () => {
-  const [username, setUsername] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { login, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
 
-  // Redirect based on role if already authenticated
-  if (isAuthenticated) {
-    if (user?.role === 'operator') {
-      return <Navigate to="/operador" />;
-    } else if (user?.role === 'technician') {
-      return <Navigate to="/" />;
-    } else if (user?.role === 'admin') {
-      return <Navigate to="/admin" />;
+  // Efeito para redirecionar quando o usuário estiver autenticado
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      console.log('Usuário autenticado, papel:', user.role);
+      switch (user.role) {
+        case 'operator':
+          console.log('Redirecionando para /operador');
+          navigate('/operador');
+          break;
+        case 'technician':
+          console.log('Redirecionando para /');
+          navigate('/');
+          break;
+        case 'admin':
+          console.log('Redirecionando para /admin');
+          navigate('/admin');
+          break;
+        default:
+          console.log('Papel desconhecido:', user.role);
+          navigate('/');
+      }
     }
-  }
+  }, [isAuthenticated, user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,13 +46,13 @@ const Login = () => {
     setIsLoading(true);
     
     try {
-      const success = await login(username, password);
+      const success = await login(identifier, password);
       
       if (success) {
         toast.success("Login realizado com sucesso!");
-        // Navigation will happen automatically due to the condition above
+        // O redirecionamento será feito pelo useEffect
       } else {
-        setError('Usuário ou senha incorretos');
+        setError('Credenciais inválidas');
         toast.error("Falha no login. Verifique suas credenciais.");
       }
     } catch (err) {
@@ -69,13 +81,12 @@ const Login = () => {
             )}
             
             <div className="space-y-2">
-              <Label htmlFor="username">Nome de usuário</Label>
+              <Label htmlFor="identifier">Email ou Nome de Usuário</Label>
               <Input
-                id="username"
-                type="text"
-                placeholder="Insira seu nome de usuário"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                id="identifier"
+                placeholder="Insira seu email ou nome de usuário"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
                 required
               />
             </div>

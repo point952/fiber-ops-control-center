@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -6,7 +5,7 @@ import CTOSplitterTypeSelector from './CTOSplitterTypeSelector';
 import CTOLocationForm from './CTOLocationForm';
 import CTOPortsForm from './CTOPortsForm';
 import TableGenerator from '../TableGenerator';
-import { useOperations } from '@/context/OperationContext';
+import { useOperations } from '@/context/operations/OperationsContext';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from "sonner";
 

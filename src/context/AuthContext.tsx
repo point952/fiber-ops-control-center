@@ -1,194 +1,280 @@
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
+import { User, Session } from '@supabase/supabase-js';
+import { toast } from "sonner";
 
-import React, { createContext, useState, useContext, useEffect } from 'react';
+export type UserRole = 'admin' | 'operator' | 'technician';
 
-type UserRole = 'admin' | 'operator' | 'technician';
-
-interface User {
+export interface UserProfile {
   id: string;
   username: string;
-  role: UserRole;
   name: string;
-  email?: string; // Added email as optional property
+  role: UserRole;
+  email?: string;
 }
 
 interface AuthContextType {
-  user: User | null;
-  login: (username: string, password: string) => Promise<boolean>;
-  logout: () => void;
+  user: UserProfile | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  getAllUsers: () => User[];
-  addUser: (newUser: Omit<User, 'id'> & { password: string }) => string;
-  updateUser: (user: User) => boolean;
-  deleteUser: (id: string) => boolean;
+  login: (identifier: string, password: string) => Promise<boolean>;
+  logout: () => Promise<void>;
+  getAllUsers: () => Promise<UserProfile[]>;
+  addUser: (user: Omit<UserProfile, 'id'> & { password: string; email: string }) => Promise<void>;
+  updateUser: (user: UserProfile) => Promise<boolean>;
+  deleteUser: (id: string) => Promise<boolean>;
+  updateOnlineStatus: (isOnline: boolean) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock user database - in a real application, this would be stored in a secure backend
-const DEFAULT_USERS = [
-  {
-    id: '1',
-    username: 'admin',
-    password: '#point#123',
-    role: 'admin' as UserRole,
-    name: 'Administrador',
-    email: 'admin@example.com'
-  },
-  {
-    id: '2',
-    username: 'operator',
-    password: 'operator123',
-    role: 'operator' as UserRole,
-    name: 'Operador Padrão',
-    email: 'operator@example.com'
-  },
-  {
-    id: '3',
-    username: 'tech',
-    password: 'tech123',
-    role: 'technician' as UserRole,
-    name: 'Técnico Padrão',
-    email: 'tech@example.com'
-  }
-];
-
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [usersDb, setUsersDb] = useState<Array<User & { password: string }>>([]);
-
-  // Initialize users on first load
-  useEffect(() => {
-    // Try to load users from localStorage, otherwise use default
-    const storedUsers = localStorage.getItem('users');
-    if (storedUsers) {
-      setUsersDb(JSON.parse(storedUsers));
-    } else {
-      setUsersDb(DEFAULT_USERS);
-      localStorage.setItem('users', JSON.stringify(DEFAULT_USERS));
-    }
-
-    // Load current logged in user if available
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-    setIsLoading(false);
-  }, []);
-
-  const login = async (username: string, password: string) => {
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    const foundUser = usersDb.find(u => u.username === username && u.password === password);
-    
-    if (foundUser) {
-      const { password, ...userWithoutPassword } = foundUser;
-      setUser(userWithoutPassword);
-      localStorage.setItem('user', JSON.stringify(userWithoutPassword));
-      return true;
-    }
-    
-    return false;
-  };
-
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('user');
-  };
-
-  const getAllUsers = () => {
-    return usersDb.map(({ password, ...user }) => user);
-  };
-
-  const addUser = (newUser: Omit<User, 'id'> & { password: string }) => {
-    // Check if username is unique
-    if (usersDb.some(u => u.username === newUser.username)) {
-      throw new Error('Username already exists');
-    }
-    
-    const newId = String(Date.now());
-    const userWithId = { ...newUser, id: newId };
-    
-    // Update state and localStorage
-    const updatedUsers = [...usersDb, userWithId];
-    setUsersDb(updatedUsers);
-    localStorage.setItem('users', JSON.stringify(updatedUsers));
-    
-    return newId;
-  };
-
-  const updateUser = (updatedUser: User) => {
-    // Find user in database
-    const userIndex = usersDb.findIndex(u => u.id === updatedUser.id);
-    
-    if (userIndex === -1) return false;
-    
-    // Get existing password since we don't modify it here
-    const existingPassword = usersDb[userIndex].password;
-    
-    // Create updated user with password
-    const userWithPassword = { ...updatedUser, password: existingPassword };
-    
-    // Update state and localStorage
-    const updatedUsers = [...usersDb];
-    updatedUsers[userIndex] = userWithPassword;
-    setUsersDb(updatedUsers);
-    localStorage.setItem('users', JSON.stringify(updatedUsers));
-    
-    // If the current user was updated, update that state too
-    if (user && user.id === updatedUser.id) {
-      setUser(updatedUser);
-      localStorage.setItem('user', JSON.stringify(updatedUser));
-    }
-    
-    return true;
-  };
-
-  const deleteUser = (id: string) => {
-    // Don't allow deleting the admin user (id: 1)
-    if (id === '1') return false;
-    
-    // Check if user exists
-    if (!usersDb.some(u => u.id === id)) return false;
-    
-    // Update state and localStorage
-    const updatedUsers = usersDb.filter(u => u.id !== id);
-    setUsersDb(updatedUsers);
-    localStorage.setItem('users', JSON.stringify(updatedUsers));
-    
-    // If the deleted user was the current user, log out
-    if (user && user.id === id) {
-      logout();
-    }
-    
-    return true;
-  };
-
-  return (
-    <AuthContext.Provider 
-      value={{ 
-        user, 
-        login, 
-        logout, 
-        isAuthenticated: !!user,
-        isLoading,
-        getAllUsers,
-        addUser,
-        updateUser,
-        deleteUser
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
-};
-
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
+};
+
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Verificar sessão ativa
+    const checkSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session) {
+          await fetchUserProfile(session.user.id);
+          // Atualizar status online ao iniciar sessão
+          await updateOnlineStatus(true);
+        } else {
+          setUser(null);
+        }
+      } catch (error) {
+        console.error('Erro ao verificar sessão:', error);
+        setUser(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkSession();
+
+    // Escutar mudanças na autenticação
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        await fetchUserProfile(session.user.id);
+        // Atualizar status online ao fazer login
+        await updateOnlineStatus(true);
+      } else if (event === 'SIGNED_OUT') {
+        // Atualizar status online ao fazer logout
+        if (user) {
+          await updateOnlineStatus(false);
+        }
+        setUser(null);
+      } else if (event === 'USER_UPDATED') {
+        if (session) {
+          await fetchUserProfile(session.user.id);
+        }
+      }
+    });
+
+    // Atualizar status online periodicamente
+    const interval = setInterval(async () => {
+      if (user) {
+        await updateOnlineStatus(true);
+      }
+    }, 30000); // A cada 30 segundos
+
+    return () => {
+      subscription.unsubscribe();
+      clearInterval(interval);
+    };
+  }, [user]);
+
+  const fetchUserProfile = async (userId: string) => {
+    try {
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error) throw error;
+
+      if (profile) {
+        setUser(profile);
+      } else {
+        setUser(null);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar perfil:', error);
+      setUser(null);
+    }
+  };
+
+  const login = async (identifier: string, password: string): Promise<boolean> => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: identifier,
+        password,
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        await fetchUserProfile(data.user.id);
+        // Atualizar status online ao fazer login
+        await updateOnlineStatus(true);
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      console.error('Erro ao fazer login:', error);
+      toast.error('Erro ao fazer login');
+      return false;
+    }
+  };
+
+  const logout = async () => {
+    try {
+      // Atualizar status online antes de fazer logout
+      if (user) {
+        await updateOnlineStatus(false);
+      }
+      await supabase.auth.signOut();
+      setUser(null);
+    } catch (error) {
+      console.error('Erro ao fazer logout:', error);
+      toast.error('Erro ao fazer logout');
+    }
+  };
+
+  const updateOnlineStatus = async (isOnline: boolean) => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('online_users')
+        .upsert({
+          user_id: user.id,
+          user_type: user.role === 'admin' ? 'operator' : user.role,
+          is_online: isOnline,
+          last_seen: new Date().toISOString()
+        });
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Erro ao atualizar status online:', error);
+    }
+  };
+
+  const getAllUsers = async (): Promise<UserProfile[]> => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*');
+
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Erro ao buscar usuários:', error);
+      return [];
+    }
+  };
+
+  const addUser = async (user: Omit<UserProfile, 'id'> & { password: string; email: string }) => {
+    try {
+      // Criar usuário no auth
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+        email: user.email,
+        password: user.password,
+        email_confirm: true
+      });
+
+      if (authError) throw authError;
+
+      if (authData.user) {
+        // Criar perfil do usuário
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            id: authData.user.id,
+            username: user.username,
+            name: user.name,
+            role: user.role
+          });
+
+        if (profileError) throw profileError;
+
+        toast.success('Usuário criado com sucesso');
+      }
+    } catch (error) {
+      console.error('Erro ao criar usuário:', error);
+      toast.error('Erro ao criar usuário');
+      throw error;
+    }
+  };
+
+  const updateUser = async (user: UserProfile): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          username: user.username,
+          role: user.role,
+          name: user.name,
+        })
+        .eq('id', user.id);
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('Erro ao atualizar usuário:', error);
+      return false;
+    }
+  };
+
+  const deleteUser = async (id: string): Promise<boolean> => {
+    try {
+      // Primeiro, deletar o perfil
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', id);
+
+      if (profileError) throw profileError;
+
+      // Depois, deletar o usuário do auth
+      const { error: authError } = await supabase.auth.admin.deleteUser(id);
+
+      if (authError) throw authError;
+
+      return true;
+    } catch (error) {
+      console.error('Erro ao deletar usuário:', error);
+      return false;
+    }
+  };
+
+  return (
+    <AuthContext.Provider value={{
+      user,
+      isAuthenticated: !!user,
+      isLoading,
+      login,
+      logout,
+      getAllUsers,
+      addUser,
+      updateUser,
+      deleteUser,
+      updateOnlineStatus
+    }}>
+      {children}
+    </AuthContext.Provider>
+  );
 };

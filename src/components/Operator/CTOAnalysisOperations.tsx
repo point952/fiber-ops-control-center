@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useOperations } from '@/context/OperationContext';
+import { useOperations } from '@/context/operations/OperationsContext';
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,7 @@ import {
   ChevronDown,
   ChevronUp
 } from 'lucide-react';
+import { Operation, OperationStatus } from '@/context/operations/types';
 
 interface CTOAnalysisOperationsProps {
   onClaimTask?: (operationId: string) => void;
@@ -112,7 +113,7 @@ const CTOAnalysisOperations = ({ onClaimTask }: CTOAnalysisOperationsProps) => {
   
   // Check if current user is assigned to this operation
   const isAssignedToMe = (operation: any) => {
-    return operation.assignedOperator === user?.name || operation.assignedOperator === user?.username;
+    return operation.assigned_operator === user?.name || operation.assigned_operator === user?.username;
   };
 
   // Function to display CTO data in a more organized way
@@ -175,6 +176,16 @@ const CTOAnalysisOperations = ({ onClaimTask }: CTOAnalysisOperationsProps) => {
     );
   };
 
+  const handleStatusChange = async (id: string, newStatus: OperationStatus) => {
+    try {
+      await updateOperationStatus(id, newStatus);
+      toast.success('Status atualizado com sucesso');
+    } catch (error) {
+      console.error('Erro ao atualizar status:', error);
+      toast.error('Erro ao atualizar status');
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -194,9 +205,9 @@ const CTOAnalysisOperations = ({ onClaimTask }: CTOAnalysisOperationsProps) => {
             <Card 
               key={operation.id} 
               className={`overflow-hidden border ${
-                operation.status === 'pendente' 
+                operation.status === 'pending' 
                   ? 'border-yellow-200' 
-                  : operation.status === 'verificando'
+                  : operation.status === 'in_progress'
                     ? 'border-purple-300'
                     : 'border-green-300'
               } ${expandedOperations[operation.id] ? 'ring-2 ring-purple-400' : ''}`}
@@ -205,9 +216,9 @@ const CTOAnalysisOperations = ({ onClaimTask }: CTOAnalysisOperationsProps) => {
                 {/* Header */}
                 <div 
                   className={`p-4 cursor-pointer ${
-                    operation.status === 'pendente' 
+                    operation.status === 'pending' 
                       ? 'bg-yellow-50' 
-                      : operation.status === 'verificando'
+                      : operation.status === 'in_progress'
                         ? 'bg-purple-50'
                         : 'bg-green-50'
                   } flex justify-between items-center`}
@@ -224,17 +235,17 @@ const CTOAnalysisOperations = ({ onClaimTask }: CTOAnalysisOperationsProps) => {
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge variant={
-                      operation.status === 'pendente' 
+                      operation.status === 'pending' 
                         ? 'outline' 
-                        : operation.status === 'verificando'
+                        : operation.status === 'in_progress'
                           ? 'secondary'
                           : 'default'
                     }>
-                      {operation.status === 'pendente' 
-                        ? 'Pendente' 
-                        : operation.status === 'verificando'
-                          ? 'Verificando'
-                          : 'Finalizado'
+                      {operation.status === 'pending' 
+                        ? 'Pending' 
+                        : operation.status === 'in_progress'
+                          ? 'In Progress'
+                          : 'Finalized'
                       }
                     </Badge>
                     {expandedOperations[operation.id] ? 
@@ -259,7 +270,7 @@ const CTOAnalysisOperations = ({ onClaimTask }: CTOAnalysisOperationsProps) => {
                       </div>
                       <div className="flex items-center text-sm text-gray-500">
                         <Clock className="h-4 w-4 mr-1" />
-                        <span>Criado em: {new Date(operation.createdAt).toLocaleString('pt-BR')}</span>
+                        <span>Criado em: {new Date(operation.created_at).toLocaleString('pt-BR')}</span>
                       </div>
                     </div>
 
@@ -277,10 +288,10 @@ const CTOAnalysisOperations = ({ onClaimTask }: CTOAnalysisOperationsProps) => {
                         </div>
                       )}
                       
-                      {operation.technicianResponse && (
+                      {operation.technician_response && (
                         <div className="bg-green-50 p-3 rounded mb-3">
                           <p className="text-xs text-green-600 mb-1">Resposta do técnico:</p>
-                          <p className="text-sm">{operation.technicianResponse}</p>
+                          <p className="text-sm">{operation.technician_response}</p>
                         </div>
                       )}
                       
@@ -337,11 +348,11 @@ const CTOAnalysisOperations = ({ onClaimTask }: CTOAnalysisOperationsProps) => {
                     </div>
 
                     <div className="border-t border-gray-100 pt-4 mt-4 flex justify-between">
-                      {operation.assignedOperator ? (
+                      {operation.assigned_operator ? (
                         <div className="text-sm">
                           <span className="font-medium">Atribuído a:</span>
                           <span className="ml-1">
-                            {operation.assignedOperator} {isAssignedToMe(operation) && '(você)'}
+                            {operation.assigned_operator} {isAssignedToMe(operation) && '(você)'}
                           </span>
                         </div>
                       ) : (
@@ -349,7 +360,7 @@ const CTOAnalysisOperations = ({ onClaimTask }: CTOAnalysisOperationsProps) => {
                       )}
                       
                       <div className="flex space-x-2">
-                        {!operation.assignedOperator && onClaimTask && (
+                        {!operation.assigned_operator && onClaimTask && (
                           <Button 
                             size="sm" 
                             variant="outline"
@@ -362,7 +373,7 @@ const CTOAnalysisOperations = ({ onClaimTask }: CTOAnalysisOperationsProps) => {
                           </Button>
                         )}
                         
-                        {isAssignedToMe(operation) && operation.status === 'pendente' && (
+                        {isAssignedToMe(operation) && operation.status === 'pending' && (
                           <Button 
                             size="sm"
                             variant="outline"
@@ -377,7 +388,7 @@ const CTOAnalysisOperations = ({ onClaimTask }: CTOAnalysisOperationsProps) => {
                           </Button>
                         )}
                         
-                        {isAssignedToMe(operation) && operation.status === 'verificando' && (
+                        {isAssignedToMe(operation) && operation.status === 'in_progress' && (
                           <Button 
                             size="sm"
                             className="bg-green-600 hover:bg-green-700"

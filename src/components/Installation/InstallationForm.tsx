@@ -13,6 +13,8 @@ import {
 import { MapPin } from 'lucide-react';
 import { toast } from "sonner";
 import TableGenerator from '../TableGenerator';
+import { useOperations } from '@/context/operations/OperationsContext';
+import { useAuth } from '@/context/AuthContext';
 
 const CIDADES = ['ARINOS', 'BURITIS', 'CABECEIRA GRANDE', 'PARACATU', 'PALMITAL', 'UNAI', 'URUANA'];
 const MODELOS = ['HG6143D', 'HG6143D3', 'HG6145D2', 'HG6145F3', 'PLUS ROUTER', 'PLUS BRIDGE'];
@@ -35,6 +37,8 @@ interface FormData {
 }
 
 const InstallationForm: React.FC<{ onBack: () => void }> = ({ onBack }) => {
+  const { user } = useAuth();
+  const { addOperation } = useOperations();
   const [formData, setFormData] = useState<FormData>({
     cidade: '',
     modelo: '',
@@ -73,21 +77,56 @@ const InstallationForm: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   };
 
   const getLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          const coordString = `${latitude}, ${longitude}`;
-          handleChange('coordenadas', coordString);
-          toast.success("Localização obtida com sucesso!");
-        },
-        () => {
-          toast.error("Não foi possível obter sua localização");
-        }
-      );
-    } else {
+    if (!navigator.geolocation) {
       toast.error("Geolocalização não é suportada pelo seu navegador");
+      return;
     }
+
+    toast.info("Obtendo sua localização...", {
+      duration: 2000,
+    });
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        // Formatar para 6 casas decimais
+        const formattedLat = latitude.toFixed(6);
+        const formattedLng = longitude.toFixed(6);
+        
+        handleChange('coordenadas', `${formattedLat}, ${formattedLng}`);
+        toast.success("Localização obtida com sucesso!");
+      },
+      (error) => {
+        console.error('Erro ao obter localização:', error);
+        let errorMessage = "Erro ao obter localização";
+        
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorMessage = "Permissão para acessar a localização foi negada";
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorMessage = "Informações de localização indisponíveis";
+            break;
+          case error.TIMEOUT:
+            errorMessage = "Tempo limite para obter localização excedido";
+            break;
+          default:
+            if (error.message.includes('secure origins')) {
+              errorMessage = "A geolocalização só funciona em conexões seguras (HTTPS). Por favor, use uma conexão segura.";
+            } else {
+              errorMessage = "Erro desconhecido ao obter localização";
+            }
+            break;
+        }
+        
+        toast.error(errorMessage);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 5000,
+        maximumAge: 0
+      }
+    );
   };
 
   const validateForm = () => {
@@ -125,7 +164,7 @@ const InstallationForm: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (validateForm()) {
