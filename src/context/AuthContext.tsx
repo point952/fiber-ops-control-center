@@ -46,16 +46,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     let isMounted = true;
 
-    const handleAuthStateChange = async (event: string, session: Session | null) => {
+    const handleAuthStateChange = (event: string, session: Session | null) => {
       if (!isMounted) return;
 
       console.log('Auth state changed:', event, session?.user?.id);
       setSession(session);
       
       if (session?.user && event !== 'SIGNED_OUT') {
-        await fetchUserProfile(session.user.id);
+        setTimeout(() => {
+          if (isMounted) {
+            fetchUserProfile(session.user.id);
+          }
+        }, 0);
       } else {
         setUser(null);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
 
@@ -69,7 +76,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         if (error) {
           console.error('Error getting session:', error);
-          setIsLoading(false);
+          if (isMounted) {
+            setIsLoading(false);
+          }
           return;
         }
 
@@ -78,10 +87,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         if (session?.user) {
           await fetchUserProfile(session.user.id);
+        } else {
+          if (isMounted) {
+            setIsLoading(false);
+          }
         }
       } catch (error) {
         console.error('Error initializing auth:', error);
-      } finally {
         if (isMounted) {
           setIsLoading(false);
         }
@@ -108,6 +120,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) {
         console.error('Error fetching profile:', error);
         setUser(null);
+        setIsLoading(false);
         return;
       }
 
@@ -121,9 +134,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           username: profile.name || profile.email
         });
       }
+      setIsLoading(false);
     } catch (error) {
       console.error('Error in fetchUserProfile:', error);
       setUser(null);
+      setIsLoading(false);
     }
   };
 
@@ -154,6 +169,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const addUser = async (email: string, password: string, name: string, role: UserRole): Promise<boolean> => {
     try {
+      console.log('Adding user with:', { email, name, role });
+      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -173,6 +190,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (data.user) {
+        // Create profile
         const { error: profileError } = await supabase
           .from('profiles')
           .insert({
@@ -246,7 +264,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      setIsLoading(true);
       console.log('Attempting login for:', email);
       
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -271,14 +288,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Login exception:', error);
       toast.error('Erro inesperado ao fazer login');
       return false;
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const signup = async (email: string, password: string, name: string, role: UserRole): Promise<boolean> => {
     try {
-      setIsLoading(true);
       console.log('Attempting signup for:', email, 'with role:', role);
 
       const { data, error } = await supabase.auth.signUp({
@@ -325,8 +339,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Signup exception:', error);
       toast.error('Erro inesperado ao criar conta');
       return false;
-    } finally {
-      setIsLoading(false);
     }
   };
 

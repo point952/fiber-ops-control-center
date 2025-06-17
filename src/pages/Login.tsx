@@ -25,22 +25,10 @@ const Login = () => {
     if (!authLoading && isAuthenticated && user) {
       console.log('User authenticated, redirecting based on role:', user.role);
       
-      // Use setTimeout to avoid potential race conditions
-      setTimeout(() => {
-        switch (user.role) {
-          case 'operator':
-            navigate('/operator', { replace: true });
-            break;
-          case 'technician':
-            navigate('/', { replace: true });
-            break;
-          case 'admin':
-            navigate('/admin', { replace: true });
-            break;
-          default:
-            navigate('/', { replace: true });
-        }
-      }, 100);
+      const redirectPath = user.role === 'admin' ? '/admin' : 
+                          user.role === 'operator' ? '/operator' : '/';
+      
+      navigate(redirectPath, { replace: true });
     }
   }, [isAuthenticated, user, authLoading, navigate]);
 
@@ -58,6 +46,7 @@ const Login = () => {
         setError('Credenciais inválidas');
       }
     } catch (err) {
+      console.error('Login error:', err);
       setError('Ocorreu um erro ao tentar fazer login');
     } finally {
       setIsLoading(false);
@@ -78,6 +67,7 @@ const Login = () => {
         setError('Erro ao criar conta');
       }
     } catch (err) {
+      console.error('Signup error:', err);
       setError('Ocorreu um erro ao tentar criar a conta');
     } finally {
       setIsLoading(false);
