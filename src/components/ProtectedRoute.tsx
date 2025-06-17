@@ -26,7 +26,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole 
   }
 
   if (requiredRole && user.role !== requiredRole) {
-    // Redirect based on user role
+    // Redirect based on user role to prevent infinite loops
     switch (user.role) {
       case 'admin':
         return <Navigate to="/admin" replace />;

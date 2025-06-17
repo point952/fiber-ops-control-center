@@ -9,7 +9,6 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { toast } from "sonner";
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -18,31 +17,37 @@ const Login = () => {
   const [role, setRole] = useState<'admin' | 'operator' | 'technician'>('technician');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { login, signup, isAuthenticated, user } = useAuth();
+  const { login, signup, isAuthenticated, user, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
 
   // Redirect authenticated users
   useEffect(() => {
-    if (isAuthenticated && user) {
+    if (!authLoading && isAuthenticated && user) {
       console.log('User authenticated, redirecting based on role:', user.role);
-      switch (user.role) {
-        case 'operator':
-          navigate('/operator');
-          break;
-        case 'technician':
-          navigate('/');
-          break;
-        case 'admin':
-          navigate('/admin');
-          break;
-        default:
-          navigate('/');
-      }
+      
+      // Use setTimeout to avoid potential race conditions
+      setTimeout(() => {
+        switch (user.role) {
+          case 'operator':
+            navigate('/operator', { replace: true });
+            break;
+          case 'technician':
+            navigate('/', { replace: true });
+            break;
+          case 'admin':
+            navigate('/admin', { replace: true });
+            break;
+          default:
+            navigate('/', { replace: true });
+        }
+      }, 100);
     }
-  }, [isAuthenticated, user, navigate]);
+  }, [isAuthenticated, user, authLoading, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoading || authLoading) return;
+    
     setError('');
     setIsLoading(true);
     
@@ -61,6 +66,8 @@ const Login = () => {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoading || authLoading) return;
+    
     setError('');
     setIsLoading(true);
     
@@ -77,7 +84,21 @@ const Login = () => {
     }
   };
 
-  if (isAuthenticated) {
+  // Show loading while checking authentication
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-gray-100 to-gray-200 p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="p-6 text-center">
+            <p>Carregando...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Don't render the login form if user is authenticated
+  if (isAuthenticated && user) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-gray-100 to-gray-200 p-4">
         <Card className="w-full max-w-md">
@@ -123,6 +144,7 @@ const Login = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
+                    disabled={isLoading}
                   />
                 </div>
                 <div className="space-y-2">
@@ -134,6 +156,7 @@ const Login = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
+                    disabled={isLoading}
                   />
                 </div>
               </CardContent>
@@ -141,7 +164,7 @@ const Login = () => {
                 <Button 
                   type="submit" 
                   className="w-full" 
-                  disabled={isLoading}
+                  disabled={isLoading || authLoading}
                 >
                   {isLoading ? "Entrando..." : "Entrar"}
                 </Button>
@@ -166,6 +189,7 @@ const Login = () => {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     required
+                    disabled={isLoading}
                   />
                 </div>
                 
@@ -178,6 +202,7 @@ const Login = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
+                    disabled={isLoading}
                   />
                 </div>
                 
@@ -190,12 +215,13 @@ const Login = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
+                    disabled={isLoading}
                   />
                 </div>
                 
                 <div className="space-y-2">
                   <Label htmlFor="role">Função</Label>
-                  <Select value={role} onValueChange={(value: any) => setRole(value)}>
+                  <Select value={role} onValueChange={(value: any) => setRole(value)} disabled={isLoading}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione uma função" />
                     </SelectTrigger>
@@ -211,7 +237,7 @@ const Login = () => {
                 <Button 
                   type="submit" 
                   className="w-full" 
-                  disabled={isLoading}
+                  disabled={isLoading || authLoading}
                 >
                   {isLoading ? "Criando conta..." : "Criar Conta"}
                 </Button>
