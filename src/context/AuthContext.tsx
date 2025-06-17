@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
@@ -11,6 +10,7 @@ export interface UserProfile {
   name: string;
   role: UserRole;
   email?: string;
+  username?: string;
 }
 
 interface AuthContextType {
@@ -21,6 +21,10 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
   signup: (email: string, password: string, name: string, role: UserRole) => Promise<boolean>;
+  getAllUsers: () => Promise<UserProfile[]>;
+  addUser: (email: string, password: string, name: string, role: UserRole) => Promise<boolean>;
+  updateUser: (userId: string, data: Partial<UserProfile>) => Promise<boolean>;
+  deleteUser: (userId: string) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -91,12 +95,130 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           id: profile.id,
           name: profile.name || 'Usuário',
           role: profile.role as UserRole,
-          email: profile.email
+          email: profile.email,
+          username: profile.name || profile.email
         });
       }
     } catch (error) {
       console.error('Error in fetchUserProfile:', error);
       setUser(null);
+    }
+  };
+
+  const getAllUsers = async (): Promise<UserProfile[]> => {
+    try {
+      const { data: profiles, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching users:', error);
+        throw error;
+      }
+
+      return profiles.map(profile => ({
+        id: profile.id,
+        name: profile.name || 'Usuário',
+        role: profile.role as UserRole,
+        email: profile.email,
+        username: profile.name || profile.email
+      }));
+    } catch (error) {
+      console.error('Error in getAllUsers:', error);
+      throw error;
+    }
+  };
+
+  const addUser = async (email: string, password: string, name: string, role: UserRole): Promise<boolean> => {
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/`,
+          data: {
+            name,
+            role
+          }
+        }
+      });
+
+      if (error) {
+        console.error('Add user error:', error);
+        toast.error('Erro ao criar usuário: ' + error.message);
+        return false;
+      }
+
+      if (data.user) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            id: data.user.id,
+            name,
+            role,
+            email
+          });
+
+        if (profileError) {
+          console.error('Profile creation error:', profileError);
+          toast.error('Erro ao criar perfil do usuário');
+          return false;
+        }
+
+        toast.success('Usuário criado com sucesso!');
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      console.error('Add user exception:', error);
+      toast.error('Erro inesperado ao criar usuário');
+      return false;
+    }
+  };
+
+  const updateUser = async (userId: string, data: Partial<UserProfile>): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update(data)
+        .eq('id', userId);
+
+      if (error) {
+        console.error('Update user error:', error);
+        toast.error('Erro ao atualizar usuário');
+        return false;
+      }
+
+      toast.success('Usuário atualizado com sucesso!');
+      return true;
+    } catch (error) {
+      console.error('Update user exception:', error);
+      toast.error('Erro inesperado ao atualizar usuário');
+      return false;
+    }
+  };
+
+  const deleteUser = async (userId: string): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', userId);
+
+      if (error) {
+        console.error('Delete user error:', error);
+        toast.error('Erro ao deletar usuário');
+        return false;
+      }
+
+      toast.success('Usuário deletado com sucesso!');
+      return true;
+    } catch (error) {
+      console.error('Delete user exception:', error);
+      toast.error('Erro inesperado ao deletar usuário');
+      return false;
     }
   };
 
@@ -156,7 +278,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (data.user) {
-        // Create profile
         const { error: profileError } = await supabase
           .from('profiles')
           .insert({
@@ -207,7 +328,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       isLoading,
       login,
       logout,
-      signup
+      signup,
+      getAllUsers,
+      addUser,
+      updateUser,
+      deleteUser
     }}>
       {children}
     </AuthContext.Provider>

@@ -1,5 +1,5 @@
 
-export type OperationStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled';
+export type OperationStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled' | 'verificando' | 'iniciando_provisionamento';
 
 export interface Operation {
   id: string;
@@ -15,6 +15,7 @@ export interface Operation {
   completed_by?: string;
   completed_at?: string;
   created_at: string;
+  operator_id?: string;
 }
 
 export interface HistoryRecord {
@@ -29,6 +30,7 @@ export interface HistoryRecord {
   operator?: string;
   feedback?: string;
   technician_response?: string;
+  status?: OperationStatus;
 }
 
 export interface Message {

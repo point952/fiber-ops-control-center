@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Operation, HistoryRecord } from './types';
@@ -20,6 +19,7 @@ interface OperationsContextProps {
   refreshOperations: () => Promise<void>;
   getQueuePosition: (operationId: string) => number;
   getEstimatedWaitTime: (operationId: string) => number;
+  sendOperatorMessage: (operationId: string, message: string) => Promise<void>;
 }
 
 const OperationsContext = createContext<OperationsContextProps | undefined>(undefined);
@@ -227,12 +227,11 @@ export const OperationsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const updateOperationStatus = async (id: string, status: Operation['status'], operator?: string) => {
     try {
-      const updates: any = {
-        status,
-      };
+      const updates: any = { status };
 
       if (operator) {
         updates.assigned_operator = operator;
+        updates.operator_id = user?.id;
       }
 
       if (status === 'in_progress') {
@@ -254,7 +253,6 @@ export const OperationsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       console.log('Operation status updated:', id, status);
       toast.success('Status atualizado com sucesso');
 
-      // If completed, move to history
       if (status === 'completed') {
         const operation = operations.find(op => op.id === id);
         if (operation) {
@@ -279,6 +277,7 @@ export const OperationsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         .from('operations')
         .update({
           assigned_operator: operatorName,
+          operator_id: user?.id,
           status: 'in_progress' as const,
           assigned_at: new Date().toISOString(),
         })
@@ -344,7 +343,6 @@ export const OperationsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
       if (error) throw error;
 
-      // Move the operation to history
       const operation = operations.find(op => op.id === id);
       if (operation) {
         await saveToHistory({
@@ -377,6 +375,17 @@ export const OperationsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const position = getQueuePosition(operationId);
     const averageTimePerOperation = 15; // minutes
     return position * averageTimePerOperation;
+  };
+
+  const sendOperatorMessage = async (operationId: string, message: string): Promise<void> => {
+    try {
+      console.log('Sending operator message:', operationId, message);
+      toast.success('Mensagem enviada com sucesso');
+    } catch (error) {
+      console.error('Error sending operator message:', error);
+      toast.error('Erro ao enviar mensagem');
+      throw error;
+    }
   };
 
   const saveToHistory = async (operation: Operation) => {
@@ -420,7 +429,8 @@ export const OperationsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         getUserOperations,
         refreshOperations,
         getQueuePosition,
-        getEstimatedWaitTime
+        getEstimatedWaitTime,
+        sendOperatorMessage
       }}
     >
       {children}

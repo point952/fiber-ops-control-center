@@ -5,7 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Bell } from 'lucide-react';
+import { ArrowLeft, Bell, Check, RefreshCcw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const TechnicianNotifications = () => {
@@ -21,6 +21,20 @@ const TechnicianNotifications = () => {
   const handleBack = () => {
     navigate('/');
   };
+
+  const markAllAsRead = () => {
+    toast({
+      title: "Em desenvolvimento",
+      description: "A funcionalidade de marcar como lida estará disponível em breve.",
+    });
+  };
+
+  const loadNotifications = () => {
+    toast({
+      title: "Atualizando",
+      description: "Verificando novas notificações...",
+    });
+  };
   
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-gray-50 to-gray-100">
@@ -32,6 +46,7 @@ const TechnicianNotifications = () => {
             onClick={handleBack}
             className="flex items-center gap-2"
           >
+            <ArrowLeft size={16} />
             Voltar ao Menu
           </Button>
           <div>
