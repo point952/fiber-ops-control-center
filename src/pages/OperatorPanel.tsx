@@ -37,9 +37,11 @@ import Footer from '@/components/Footer';
 type TabType = 'installation' | 'cto' | 'rma' | 'history';
 
 const OperatorPanel = () => {
-  const [activeTab, setActiveTab] = useState<TabType>('installation');
-  const { operations, assignOperation, history, refreshOperations } = useOperations();
   const { user } = useAuth();
+  const { assignOperation } = useOperations();
+  
+  const [activeTab, setActiveTab] = useState<TabType>('installation');
+  const { operations, history, refreshOperations } = useOperations();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   
@@ -155,15 +157,13 @@ const OperatorPanel = () => {
   };
 
   // Logic to assign/claim a task to the current operator
-  const claimTask = async (operationId: string) => {
+  const handleClaimTask = async (operationId: string) => {
     if (!user) return;
     
     try {
-      await assignOperation(operationId, user.id, user.name);
-      toast.success(`Chamado atribuído a ${user.name}`);
+      await assignOperation(operationId, user.name);
     } catch (error) {
-      console.error('Erro ao atribuir chamado:', error);
-      toast.error('Erro ao atribuir chamado');
+      console.error('Error claiming task:', error);
     }
   };
 
@@ -177,7 +177,7 @@ const OperatorPanel = () => {
 
   const renderTabContent = () => {
     // Pass the claim task function to each operation component
-    const props = { onClaimTask: claimTask };
+    const props = { onClaimTask: handleClaimTask };
     
     switch (activeTab) {
       case 'installation':

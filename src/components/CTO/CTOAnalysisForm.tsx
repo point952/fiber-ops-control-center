@@ -82,7 +82,7 @@ const CTOAnalysisForm: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     }
   };
 
-  const submitAnalysis = () => {
+  const submitAnalysis = async () => {
     if (!user) {
       toast.error("Você precisa estar logado para enviar análises");
       return;
@@ -99,7 +99,13 @@ const CTOAnalysisForm: React.FC<{ onBack: () => void }> = ({ onBack }) => {
       };
       
       // Add the operation to the context
-      addOperation('cto', operationData, user.name, user.id);
+      await addOperation({
+        type: 'cto',
+        data: operationData,
+        status: 'pending',
+        technician: user.name,
+        technician_id: user.id
+      });
       
       toast.success("Análise de CTO enviada com sucesso!");
       

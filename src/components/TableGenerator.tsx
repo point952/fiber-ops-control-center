@@ -23,6 +23,8 @@ const TableGenerator: React.FC<TableGeneratorProps> = ({
   const [tableGenerated, setTableGenerated] = useState(false);
   const [generatedTable, setGeneratedTable] = useState('');
   const [submittedData, setSubmittedData] = useState<Record<string, string>>({});
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   // Gerar tabela automaticamente quando o componente montar
   useEffect(() => {
@@ -89,66 +91,30 @@ const TableGenerator: React.FC<TableGeneratorProps> = ({
     }
   };
 
-  const sendToOperator = async () => {
+  const submitAnalysis = async () => {
     if (!user) {
-      toast.error("Você precisa estar logado para enviar a solicitação.");
+      toast.error("Você precisa estar logado para enviar análises");
       return;
     }
-
+    
+    setSubmitting(true);
+    
     try {
-      if (!user.id) {
-        throw new Error('ID do técnico não encontrado');
-      }
-
-      // Log the data being sent
-      console.log('Enviando dados:', {
+      await addOperation({
         type,
-        data: submittedData,
+        data: formData,
+        status: 'pending',
         technician: user.name,
-        technicianId: user.id
+        technician_id: user.id
       });
-
-      // Criar a operação
-      await addOperation(type, submittedData, user.name, user.id);
       
-      // Buscar a operação recém-criada
-      const { data: operations, error: fetchError } = await supabase
-        .from('operations')
-        .select('*')
-        .eq('technician_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-
-      if (fetchError) {
-        throw fetchError;
-      }
-
-      if (operations) {
-        // Criar uma conversa para a operação
-        const { error: conversationError } = await supabase
-          .from('conversations')
-          .insert({
-            operation_id: operations.id,
-            technician_id: user.id,
-            operator_id: null, // Será atribuído quando um operador pegar a operação
-            status: 'active',
-            last_message_at: new Date().toISOString()
-          });
-
-        if (conversationError) {
-          console.error('Erro ao criar conversa:', conversationError);
-        }
-      }
-
-      toast.success("Solicitação enviada com sucesso para o operador!");
-      
-      if (onBack) {
-        setTimeout(onBack, 1500);
-      }
+      toast.success("Análise enviada com sucesso!");
+      setShowSuccess(true);
     } catch (error) {
-      console.error('Erro ao enviar para o operador:', error);
-      toast.error(error instanceof Error ? error.message : "Erro ao enviar solicitação. Tente novamente.");
+      console.error("Erro ao enviar análise:", error);
+      toast.error("Erro ao enviar análise. Tente novamente.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -186,7 +152,7 @@ const TableGenerator: React.FC<TableGeneratorProps> = ({
             <Button
               type="button"
               variant="default"
-              onClick={sendToOperator}
+              onClick={submitAnalysis}
             >
               Enviar para Operador
             </Button>

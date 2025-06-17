@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -9,20 +10,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { toast } from "sonner";
 import { useNavigate } from 'react-router-dom';
 import { Trash2, PencilLine, UserPlus } from 'lucide-react';
-
-interface User {
-  id: string;
-  username: string;
-  name: string;
-  role: 'admin' | 'operator' | 'technician';
-  email?: string;
-}
+import { UserProfile } from '@/integrations/supabase/types';
 
 const AdminPanel = () => {
   const { user: currentUser, getAllUsers, addUser, updateUser, deleteUser } = useAuth();
   const navigate = useNavigate();
   
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<UserProfile[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   
   // Load users on component mount
@@ -41,7 +35,13 @@ const AdminPanel = () => {
   };
   
   const [showAddUser, setShowAddUser] = useState(false);
-  const [newUser, setNewUser] = useState<Omit<User, 'id'> & { password: string; email: string }>({
+  const [newUser, setNewUser] = useState<{
+    username: string;
+    name: string;
+    role: 'admin' | 'operator' | 'technician';
+    password: string;
+    email: string;
+  }>({
     username: '',
     name: '',
     role: 'technician',
@@ -49,7 +49,7 @@ const AdminPanel = () => {
     email: '',
   });
   
-  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
 
   const handleAddUser = async () => {
     if (!newUser.username || !newUser.name || !newUser.password || !newUser.email) {
@@ -96,7 +96,7 @@ const AdminPanel = () => {
     }
   };
 
-  const startEditUser = (user: User) => {
+  const startEditUser = (user: UserProfile) => {
     if (currentUser?.role === 'admin') {
       toast.error("Não é possível editar o usuário administrador");
       return;
@@ -109,7 +109,7 @@ const AdminPanel = () => {
     
     setIsLoading(true);
     try {
-      const success = await updateUser(editingUser);
+      const success = await updateUser(editingUser.id, editingUser);
       
       if (success) {
         await loadUsers();
@@ -280,7 +280,7 @@ const AdminPanel = () => {
                 <Label htmlFor="edit-name">Nome</Label>
                 <Input
                   id="edit-name"
-                  value={editingUser.name}
+                  value={editingUser.name || ''}
                   onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })}
                   disabled={isLoading}
                 />
@@ -289,7 +289,7 @@ const AdminPanel = () => {
                 <Label htmlFor="edit-username">Nome de Usuário</Label>
                 <Input
                   id="edit-username"
-                  value={editingUser.username}
+                  value={editingUser.username || ''}
                   onChange={(e) => setEditingUser({ ...editingUser, username: e.target.value })}
                   disabled={isLoading}
                 />
