@@ -1,6 +1,7 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
-import { Operation, HistoryRecord, Message } from './types';
+import { supabase } from '@/integrations/supabase/client';
+import { Operation, HistoryRecord } from './types';
 import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
 
@@ -11,7 +12,7 @@ interface OperationsContextProps {
   isLoading: boolean;
   addOperation: (type: 'installation' | 'cto' | 'rma', data: Record<string, any>, technician: string, technicianId?: string) => Promise<void>;
   updateOperationStatus: (id: string, status: Operation['status'], operator?: string) => Promise<void>;
-  assignOperation: (operationId: string, operatorId: string, operatorName: string) => Promise<void>;
+  assignOperation: (operationId: string, operatorName: string) => Promise<void>;
   updateOperationFeedback: (id: string, feedback: string) => Promise<void>;
   updateTechnicianResponse: (id: string, response: string) => Promise<void>;
   completeOperation: (id: string, operator: string) => Promise<void>;
@@ -19,8 +20,6 @@ interface OperationsContextProps {
   refreshOperations: () => Promise<void>;
   getQueuePosition: (operationId: string) => number;
   getEstimatedWaitTime: (operationId: string) => number;
-  sendOperatorMessage: (operationId: string, message: string) => Promise<void>;
-  sendTechnicianMessage: (operationId: string, message: string) => Promise<void>;
 }
 
 const OperationsContext = createContext<OperationsContextProps | undefined>(undefined);
@@ -29,19 +28,26 @@ export const OperationsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [operations, setOperations] = useState<Operation[]>([]);
   const [history, setHistory] = useState<HistoryRecord[]>([]);
   const [queue, setQueue] = useState<Operation[]>([]);
-  const { user } = useAuth();
-  const [isInitialized, setIsInitialized] = useState(false);
+  const { user, isAuthenticated } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
 
   // Setup realtime subscription
   useEffect(() => {
+    if (!isAuthenticated || !user) {
+      setOperations([]);
+      setHistory([]);
+      setQueue([]);
+      setIsLoading(false);
+      return;
+    }
+
     let mounted = true;
 
     const initializeData = async () => {
-      if (!isInitialized && mounted) {
+      if (mounted) {
         setIsLoading(true);
         await fetchOperations();
-        setIsInitialized(true);
+        await fetchHistory();
         setIsLoading(false);
       }
     };
@@ -60,6 +66,8 @@ export const OperationsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         },
         (payload) => {
           if (!mounted) return;
+
+          console.log('Operations change:', payload);
 
           switch (payload.eventType) {
             case 'INSERT':
@@ -109,7 +117,7 @@ export const OperationsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           table: 'operation_history'
         },
         (payload) => {
-          console.log('Mudança no histórico:', payload);
+          console.log('History change:', payload);
           
           switch (payload.eventType) {
             case 'INSERT':
@@ -130,102 +138,13 @@ export const OperationsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       )
       .subscribe();
 
-    // Subscribe to operator messages
-    const operatorMessagesSubscription = supabase
-      .channel('operator_messages')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'operator_messages'
-        },
-        (payload) => {
-          console.log('Nova mensagem do operador:', payload);
-          
-          if (payload.eventType === 'INSERT') {
-            const newMessage = payload.new as Message;
-            setOperations(prev => 
-              prev.map(op => {
-                if (op.id === newMessage.operation_id) {
-                  return {
-                    ...op,
-                    messages: [...(op.messages || []), newMessage]
-                  };
-                }
-                return op;
-              })
-            );
-          }
-        }
-      )
-      .subscribe();
-
-    // Subscribe to technician messages
-    const technicianMessagesSubscription = supabase
-      .channel('technician_messages')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'technician_messages'
-        },
-        (payload) => {
-          console.log('Nova mensagem do técnico:', payload);
-          
-          if (payload.eventType === 'INSERT') {
-            const newMessage = payload.new as Message;
-            setOperations(prev => 
-              prev.map(op => {
-                if (op.id === newMessage.operation_id) {
-                  return {
-                    ...op,
-                    messages: [...(op.messages || []), newMessage]
-                  };
-                }
-                return op;
-              })
-            );
-          }
-        }
-      )
-      .subscribe();
-
-    // Subscribe to notifications
-    const notificationsSubscription = supabase
-      .channel('notifications')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'notifications'
-        },
-        (payload) => {
-          console.log('Nova notificação:', payload);
-          
-          if (payload.eventType === 'INSERT') {
-            const newNotification = payload.new;
-            // Mostrar notificação para o usuário
-            if (newNotification.user_id === user?.id) {
-              toast.info(newNotification.message);
-            }
-          }
-        }
-      )
-      .subscribe();
-
     // Cleanup subscriptions
     return () => {
       mounted = false;
       operationsSubscription.unsubscribe();
       historySubscription.unsubscribe();
-      operatorMessagesSubscription.unsubscribe();
-      technicianMessagesSubscription.unsubscribe();
-      notificationsSubscription.unsubscribe();
     };
-  }, [isInitialized]);
+  }, [isAuthenticated, user]);
 
   const fetchOperations = async () => {
     try {
@@ -235,35 +154,45 @@ export const OperationsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         .order('created_at', { ascending: false });
 
       if (operationsError) {
-        console.error('Erro ao buscar operações:', operationsError);
+        console.error('Error fetching operations:', operationsError);
         throw operationsError;
       }
 
+      console.log('Fetched operations:', operationsData?.length);
       setOperations(operationsData || []);
       
       // Update queue with only pending operations
       const pendingOperations = operationsData?.filter(op => op.status === 'pending') || [];
       setQueue(pendingOperations);
-
-      const { data: historyData, error: historyError } = await supabase
-        .from('operation_history')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (historyError) {
-        console.error('Erro ao buscar histórico:', historyError);
-        throw historyError;
-      }
-
-      setHistory(historyData || []);
     } catch (error) {
       console.error('Error fetching operations:', error);
       toast.error('Erro ao carregar operações');
     }
   };
 
+  const fetchHistory = async () => {
+    try {
+      const { data: historyData, error: historyError } = await supabase
+        .from('operation_history')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (historyError) {
+        console.error('Error fetching history:', historyError);
+        throw historyError;
+      }
+
+      console.log('Fetched history:', historyData?.length);
+      setHistory(historyData || []);
+    } catch (error) {
+      console.error('Error fetching history:', error);
+      toast.error('Erro ao carregar histórico');
+    }
+  };
+
   const refreshOperations = async () => {
     await fetchOperations();
+    await fetchHistory();
   };
 
   const addOperation = async (
@@ -273,84 +202,68 @@ export const OperationsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     technicianId?: string
   ) => {
     try {
-      // Create the operation
       const { data: newOperation, error: operationError } = await supabase
         .from('operations')
         .insert([{
           type,
           data,
-          status: 'pending',
+          status: 'pending' as const,
           technician_id: technicianId || user?.id,
           technician,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
         }])
         .select()
         .single();
 
       if (operationError) throw operationError;
 
-      // Create notification for operators
-      const { error: notificationError } = await supabase
-        .from('notifications')
-        .insert([{
-          type: 'new_operation',
-          title: 'Nova Operação',
-          message: `Nova operação de ${type} criada por ${technician}`,
-          operation_id: newOperation.id,
-          user_id: null, // This will be visible to all operators
-          is_read: false,
-          created_at: new Date().toISOString()
-        }]);
-
-      if (notificationError) {
-        console.error('Erro ao criar notificação:', notificationError);
-        // Continue execution even if notification fails
-      }
-
-      // Update local state
-      setOperations(prev => [newOperation, ...prev]);
-      setQueue(prev => [newOperation, ...prev]);
-      
-      // Refresh operations from database
-      await refreshOperations();
-      
-      toast.success('Operação enviada com sucesso!');
+      console.log('Operation created:', newOperation);
+      toast.success('Operação criada com sucesso!');
     } catch (error) {
-      console.error('Erro ao criar operação:', error);
-      toast.error('Erro ao enviar operação. Tente novamente.');
+      console.error('Error creating operation:', error);
+      toast.error('Erro ao criar operação. Tente novamente.');
       throw error;
     }
   };
 
   const updateOperationStatus = async (id: string, status: Operation['status'], operator?: string) => {
     try {
-      const { data, error } = await supabase
+      const updates: any = {
+        status,
+      };
+
+      if (operator) {
+        updates.assigned_operator = operator;
+      }
+
+      if (status === 'in_progress') {
+        updates.assigned_at = new Date().toISOString();
+      }
+
+      if (status === 'completed') {
+        updates.completed_at = new Date().toISOString();
+        updates.completed_by = operator || user?.name;
+      }
+
+      const { error } = await supabase
         .from('operations')
-        .update({
-          status,
-          operator_id: operator,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', id)
-        .select()
-        .single();
+        .update(updates)
+        .eq('id', id);
 
       if (error) throw error;
-      setOperations(prev =>
-        prev.map(op =>
-          op.id === id
-            ? { ...op, status, operator_id: operator }
-            : op
-        )
-      );
+
+      console.log('Operation status updated:', id, status);
       toast.success('Status atualizado com sucesso');
 
+      // If completed, move to history
       if (status === 'completed') {
         const operation = operations.find(op => op.id === id);
         if (operation) {
-          await saveToHistory(operation);
-          setOperations(prev => prev.filter(op => op.id !== id));
+          await saveToHistory({
+            ...operation,
+            status,
+            completed_at: updates.completed_at,
+            completed_by: updates.completed_by
+          });
         }
       }
     } catch (error) {
@@ -360,38 +273,20 @@ export const OperationsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
   };
 
-  const assignOperation = async (operationId: string, operatorId: string, operatorName: string) => {
+  const assignOperation = async (operationId: string, operatorName: string) => {
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('operations')
         .update({
-          operator_id: operatorId,
-          operator: operatorName,
           assigned_operator: operatorName,
-          status: 'in_progress',
+          status: 'in_progress' as const,
           assigned_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
         })
-        .eq('id', operationId)
-        .select()
-        .single();
+        .eq('id', operationId);
 
       if (error) throw error;
-      setOperations(prev =>
-        prev.map(op =>
-          op.id === operationId
-            ? {
-                ...op,
-                operator_id: operatorId,
-                operator: operatorName,
-                assigned_operator: operatorName,
-                status: 'in_progress',
-                assigned_at: new Date().toISOString()
-              }
-            : op
-        )
-      );
-      setQueue(prev => prev.filter(op => op.id !== operationId));
+      
+      console.log('Operation assigned:', operationId, operatorName);
       toast.success('Operação atribuída com sucesso');
     } catch (error) {
       console.error('Error assigning operation:', error);
@@ -402,18 +297,14 @@ export const OperationsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const updateOperationFeedback = async (id: string, feedback: string) => {
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('operations')
-        .update({ 
-          feedback,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', id)
-        .select()
-        .single();
+        .update({ feedback })
+        .eq('id', id);
 
       if (error) throw error;
-      setOperations(prev => prev.map(op => op.id === id ? data : op));
+      
+      console.log('Feedback updated:', id);
       toast.success('Feedback enviado com sucesso');
     } catch (error) {
       console.error('Error updating feedback:', error);
@@ -424,18 +315,14 @@ export const OperationsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const updateTechnicianResponse = async (id: string, response: string) => {
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('operations')
-        .update({ 
-          technician_response: response,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', id)
-        .select()
-        .single();
+        .update({ technician_response: response })
+        .eq('id', id);
 
       if (error) throw error;
-      setOperations(prev => prev.map(op => op.id === id ? data : op));
+      
+      console.log('Technician response updated:', id);
       toast.success('Resposta enviada com sucesso');
     } catch (error) {
       console.error('Error updating technician response:', error);
@@ -446,26 +333,29 @@ export const OperationsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const completeOperation = async (id: string, operator: string) => {
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('operations')
         .update({ 
-          status: 'completed',
+          status: 'completed' as const,
           completed_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          completed_by: operator
         })
-        .eq('id', id)
-        .select()
-        .single();
+        .eq('id', id);
 
       if (error) throw error;
 
       // Move the operation to history
       const operation = operations.find(op => op.id === id);
       if (operation) {
-        await saveToHistory(operation);
-        setOperations(prev => prev.filter(op => op.id !== id));
+        await saveToHistory({
+          ...operation,
+          status: 'completed' as const,
+          completed_at: new Date().toISOString(),
+          completed_by: operator
+        });
       }
 
+      console.log('Operation completed:', id);
       toast.success('Operação finalizada com sucesso');
     } catch (error) {
       console.error('Error completing operation:', error);
@@ -485,82 +375,8 @@ export const OperationsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const getEstimatedWaitTime = (operationId: string): number => {
     const position = getQueuePosition(operationId);
-    const averageTimePerOperation = 15; // minutos
+    const averageTimePerOperation = 15; // minutes
     return position * averageTimePerOperation;
-  };
-
-  const sendOperatorMessage = async (operationId: string, message: string) => {
-    try {
-      const { data: newMessage, error } = await supabase
-        .from('operator_messages')
-        .insert([{
-          operation_id: operationId,
-          sender_id: user?.id || '',
-          sender_name: user?.name || 'Operador',
-          content: message,
-          created_at: new Date().toISOString(),
-          is_operator: true,
-          is_read: false
-        }])
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      // Update local state
-      setOperations(prev => 
-        prev.map(op => {
-          if (op.id === operationId) {
-            return {
-              ...op,
-              messages: [...(op.messages || []), newMessage]
-            };
-          }
-          return op;
-        })
-      );
-    } catch (error) {
-      console.error('Erro ao enviar mensagem:', error);
-      toast.error('Erro ao enviar mensagem');
-      throw error;
-    }
-  };
-
-  const sendTechnicianMessage = async (operationId: string, message: string) => {
-    try {
-      const { data: newMessage, error } = await supabase
-        .from('technician_messages')
-        .insert([{
-          operation_id: operationId,
-          sender_id: user?.id || '',
-          sender_name: user?.name || 'Técnico',
-          content: message,
-          created_at: new Date().toISOString(),
-          is_operator: false,
-          is_read: false
-        }])
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      // Update local state
-      setOperations(prev => 
-        prev.map(op => {
-          if (op.id === operationId) {
-            return {
-              ...op,
-              messages: [...(op.messages || []), newMessage]
-            };
-          }
-          return op;
-        })
-      );
-    } catch (error) {
-      console.error('Erro ao enviar mensagem:', error);
-      toast.error('Erro ao enviar mensagem');
-      throw error;
-    }
   };
 
   const saveToHistory = async (operation: Operation) => {
@@ -572,18 +388,18 @@ export const OperationsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           type: operation.type,
           data: operation.data,
           created_at: operation.created_at,
-          completed_at: new Date().toISOString(),
+          completed_at: operation.completed_at || new Date().toISOString(),
           technician: operation.technician,
           technician_id: operation.technician_id,
-          operator: operation.operator || 'Não atribuído',
+          operator: operation.assigned_operator || operation.completed_by || 'Sistema',
           feedback: operation.feedback || '',
-          technician_response: operation.technician_response || '',
-          status: operation.status
+          technician_response: operation.technician_response || ''
         }]);
 
       if (error) throw error;
+      console.log('Operation saved to history:', operation.id);
     } catch (error) {
-      console.error('Erro ao salvar no histórico:', error);
+      console.error('Error saving to history:', error);
       throw error;
     }
   };
@@ -604,9 +420,7 @@ export const OperationsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         getUserOperations,
         refreshOperations,
         getQueuePosition,
-        getEstimatedWaitTime,
-        sendOperatorMessage,
-        sendTechnicianMessage
+        getEstimatedWaitTime
       }}
     >
       {children}
@@ -620,4 +434,4 @@ export const useOperations = () => {
     throw new Error('useOperations must be used within an OperationsProvider');
   }
   return context;
-}; 
+};

@@ -9,7 +9,123 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      operation_history: {
+        Row: {
+          completed_at: string
+          created_at: string
+          data: Json
+          feedback: string | null
+          id: string
+          operation_id: string
+          operator: string | null
+          technician: string
+          technician_id: string | null
+          technician_response: string | null
+          type: string
+        }
+        Insert: {
+          completed_at: string
+          created_at: string
+          data: Json
+          feedback?: string | null
+          id?: string
+          operation_id: string
+          operator?: string | null
+          technician: string
+          technician_id?: string | null
+          technician_response?: string | null
+          type: string
+        }
+        Update: {
+          completed_at?: string
+          created_at?: string
+          data?: Json
+          feedback?: string | null
+          id?: string
+          operation_id?: string
+          operator?: string | null
+          technician?: string
+          technician_id?: string | null
+          technician_response?: string | null
+          type?: string
+        }
+        Relationships: []
+      }
+      operations: {
+        Row: {
+          assigned_at: string | null
+          assigned_operator: string | null
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          data: Json
+          feedback: string | null
+          id: string
+          status: string
+          technician: string
+          technician_id: string | null
+          technician_response: string | null
+          type: string
+        }
+        Insert: {
+          assigned_at?: string | null
+          assigned_operator?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          data: Json
+          feedback?: string | null
+          id?: string
+          status: string
+          technician: string
+          technician_id?: string | null
+          technician_response?: string | null
+          type: string
+        }
+        Update: {
+          assigned_at?: string | null
+          assigned_operator?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          data?: Json
+          feedback?: string | null
+          id?: string
+          status?: string
+          technician?: string
+          technician_id?: string | null
+          technician_response?: string | null
+          type?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          name: string | null
+          role: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id: string
+          name?: string | null
+          role?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string | null
+          role?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
