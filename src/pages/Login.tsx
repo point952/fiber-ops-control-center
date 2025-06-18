@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,11 +19,15 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { login, signup, isAuthenticated, user, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Redirect authenticated users
   useEffect(() => {
     if (!authLoading && isAuthenticated && user) {
-      console.log('User authenticated, redirecting based on role:', user.role);
+      console.log('User authenticated, determining redirect path for role:', user.role);
+      
+      // Verificar se há um redirecionamento anterior salvo
+      const from = (location.state as any)?.from?.pathname;
       
       // Determinar redirecionamento baseado na role
       let redirectPath = '/';
@@ -41,11 +45,27 @@ const Login = () => {
         default:
           redirectPath = '/';
       }
+
+      // Se há um local de origem válido e o usuário tem permissão, use-o
+      if (from && from !== '/login') {
+        // Verificar se o usuário tem permissão para acessar a rota de origem
+        const hasPermission = checkRoutePermission(from, user.role);
+        if (hasPermission) {
+          redirectPath = from;
+        }
+      }
       
       console.log('Redirecting to:', redirectPath);
       navigate(redirectPath, { replace: true });
     }
-  }, [isAuthenticated, user, authLoading, navigate]);
+  }, [isAuthenticated, user, authLoading, navigate, location.state]);
+
+  const checkRoutePermission = (path: string, userRole: string): boolean => {
+    if (path.startsWith('/admin')) return userRole === 'admin';
+    if (path.startsWith('/operator')) return userRole === 'operator';
+    if (path === '/') return userRole === 'technician';
+    return true; // Rotas públicas
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,6 +80,7 @@ const Login = () => {
       if (!success) {
         setError('Credenciais inválidas');
       }
+      // O redirecionamento será tratado pelo useEffect acima
     } catch (err) {
       console.error('Login error:', err);
       setError('Ocorreu um erro ao tentar fazer login');
@@ -81,6 +102,7 @@ const Login = () => {
       if (!success) {
         setError('Erro ao criar conta');
       }
+      // O redirecionamento será tratado pelo useEffect acima
     } catch (err) {
       console.error('Signup error:', err);
       setError('Ocorreu um erro ao tentar criar a conta');
@@ -95,6 +117,7 @@ const Login = () => {
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-gray-100 to-gray-200 p-4">
         <Card className="w-full max-w-md">
           <CardContent className="p-6 text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
             <p>Verificando autenticação...</p>
           </CardContent>
         </Card>
@@ -108,7 +131,8 @@ const Login = () => {
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-gray-100 to-gray-200 p-4">
         <Card className="w-full max-w-md">
           <CardContent className="p-6 text-center">
-            <p>Redirecionando para {user.role === 'admin' ? 'painel administrativo' : user.role === 'operator' ? 'painel do operador' : 'página inicial'}...</p>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p>Redirecionando...</p>
           </CardContent>
         </Card>
       </div>

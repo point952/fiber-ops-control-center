@@ -3,8 +3,8 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = "https://dixdeoaqjjhqxwvemcyu.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRpeGRlb2FxampocXh3dmVtY3l1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc0ODUzMDQsImV4cCI6MjA2MzA2MTMwNH0.wqP-2lfE_mkq4oZdUe7q2UENug6HSuj7jrwBWnd7e70";
+const SUPABASE_URL = "https://muqtzyvfqngzzpbupwmf.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im11cXR6eXZmcW5nenpwYnVwd21mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc0ODcwMzcsImV4cCI6MjA2MzA2MzAzN30.d7H4IaxZc2BxnQ42ZWnrnivOfXxhDbf3BENpE43cOzs";
 
 // Create a single instance to avoid multiple client warnings
 let supabaseInstance: ReturnType<typeof createClient<Database>> | null = null;
@@ -13,6 +13,19 @@ export const supabase = supabaseInstance || (supabaseInstance = createClient<Dat
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: true
+    detectSessionInUrl: true,
+    storageKey: 'fiber-ops-session',
+    storage: {
+      getItem: (key) => {
+        const value = localStorage.getItem(key);
+        return value ? JSON.parse(value) : null;
+      },
+      setItem: (key, value) => {
+        localStorage.setItem(key, JSON.stringify(value));
+      },
+      removeItem: (key) => {
+        localStorage.removeItem(key);
+      }
+    }
   }
 }));

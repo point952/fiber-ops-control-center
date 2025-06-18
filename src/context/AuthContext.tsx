@@ -42,6 +42,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Normalizar roles para garantir consistência
+  const normalizeRole = useCallback((role: string): UserRole => {
+    const roleMap: { [key: string]: UserRole } = {
+      'operador': 'operator',
+      'operator': 'operator',
+      'técnico': 'technician',
+      'technician': 'technician',
+      'admin': 'admin',
+      'administrador': 'admin'
+    };
+    return roleMap[role.toLowerCase()] || 'technician';
+  }, []);
+
   const fetchUserProfile = useCallback(async (userId: string) => {
     try {
       console.log('Fetching profile for user:', userId);
@@ -53,14 +66,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.error('Error fetching profile:', error);
-        setUser(null);
-        setIsLoading(false);
+        if (error.code === 'PGRST116') {
+          // Profile não existe, criar um perfil padrão
+          console.log('Profile not found, creating default profile');
+          const { data: sessionData } = await supabase.auth.getSession();
+          if (sessionData.session?.user) {
+            await createDefaultProfile(sessionData.session.user);
+          }
+        }
         return;
       }
 
       if (profile) {
         console.log('Profile fetched:', profile);
-        const normalizedRole = profile.role === 'operador' ? 'operator' : profile.role as UserRole;
+        const normalizedRole = normalizeRole(profile.role);
         setUser({
           id: profile.id,
           name: profile.name || 'Usuário',
@@ -69,33 +88,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           username: profile.name || profile.email
         });
       }
-      setIsLoading(false);
     } catch (error) {
       console.error('Error in fetchUserProfile:', error);
-      setUser(null);
+    } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [normalizeRole]);
+
+  const createDefaultProfile = async (authUser: User) => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .insert({
+          id: authUser.id,
+          name: authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'Usuário',
+          role: 'technician',
+          email: authUser.email
+        });
+
+      if (error) {
+        console.error('Error creating default profile:', error);
+      } else {
+        console.log('Default profile created successfully');
+        await fetchUserProfile(authUser.id);
+      }
+    } catch (error) {
+      console.error('Error in createDefaultProfile:', error);
+    }
+  };
 
   useEffect(() => {
-    let isMounted = true;
+    let mounted = true;
 
-    const handleAuthStateChange = (event: string, session: Session | null) => {
-      if (!isMounted) return;
+    const handleAuthStateChange = async (event: string, session: Session | null) => {
+      if (!mounted) return;
 
       console.log('Auth state changed:', event, session?.user?.id);
       setSession(session);
       
       if (session?.user && event !== 'SIGNED_OUT') {
-        // Use setTimeout para evitar problemas de concorrência
-        setTimeout(() => {
-          if (isMounted) {
-            fetchUserProfile(session.user.id);
-          }
-        }, 100);
+        await fetchUserProfile(session.user.id);
       } else {
         setUser(null);
-        if (isMounted) {
+        if (mounted) {
           setIsLoading(false);
         }
       }
@@ -111,25 +146,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         if (error) {
           console.error('Error getting session:', error);
-          if (isMounted) {
+          if (mounted) {
             setIsLoading(false);
           }
           return;
         }
 
         console.log('Initial session check:', session?.user?.id);
-        setSession(session);
         
         if (session?.user) {
+          setSession(session);
           await fetchUserProfile(session.user.id);
         } else {
-          if (isMounted) {
+          if (mounted) {
             setIsLoading(false);
           }
         }
       } catch (error) {
         console.error('Error initializing auth:', error);
-        if (isMounted) {
+        if (mounted) {
           setIsLoading(false);
         }
       }
@@ -138,7 +173,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initializeAuth();
 
     return () => {
-      isMounted = false;
+      mounted = false;
       subscription.unsubscribe();
     };
   }, [fetchUserProfile]);
@@ -158,7 +193,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return profiles.map(profile => ({
         id: profile.id,
         name: profile.name || 'Usuário',
-        role: (profile.role === 'operador' ? 'operator' : profile.role) as UserRole,
+        role: normalizeRole(profile.role),
         email: profile.email,
         username: profile.name || profile.email
       }));

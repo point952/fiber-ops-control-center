@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 
 interface ProtectedRouteProps {
@@ -10,13 +10,15 @@ interface ProtectedRouteProps {
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole }) => {
   const { isAuthenticated, user, isLoading } = useAuth();
+  const location = useLocation();
 
-  console.log('ProtectedRoute - isAuthenticated:', isAuthenticated, 'user:', user, 'isLoading:', isLoading, 'requiredRole:', requiredRole);
+  console.log('ProtectedRoute - Path:', location.pathname, 'isAuthenticated:', isAuthenticated, 'user:', user, 'isLoading:', isLoading, 'requiredRole:', requiredRole);
 
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p>Carregando...</p>
         </div>
       </div>
@@ -25,7 +27,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole 
 
   if (!isAuthenticated || !user) {
     console.log('User not authenticated, redirecting to login');
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
   // Se não há role específico requerido, permite acesso
@@ -34,20 +36,12 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole 
     return <>{children}</>;
   }
 
-  // Normalizar roles para corresponder ao banco de dados
-  const normalizeRole = (role: string) => {
-    if (role === 'operator' || role === 'operador') return 'operator';
-    if (role === 'technician' || role === 'técnico') return 'technician';
-    return role;
-  };
+  const userRole = user.role;
 
-  const userRole = normalizeRole(user.role);
-  const normalizedRequiredRole = normalizeRole(requiredRole);
-
-  if (userRole !== normalizedRequiredRole) {
-    console.log('User role mismatch. Required:', normalizedRequiredRole, 'User role:', userRole);
+  if (userRole !== requiredRole) {
+    console.log('User role mismatch. Required:', requiredRole, 'User role:', userRole);
     
-    // Redirecionamento baseado na role do usuário
+    // Evitar redirecionamento em loop - só redireciona se não estiver já na página correta
     const getRedirectPath = () => {
       switch (userRole) {
         case 'admin':
@@ -62,8 +56,12 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole 
     };
 
     const redirectPath = getRedirectPath();
-    console.log('Redirecting to:', redirectPath);
-    return <Navigate to={redirectPath} replace />;
+    
+    // Só redireciona se não estiver já no caminho correto
+    if (location.pathname !== redirectPath) {
+      console.log('Redirecting to:', redirectPath);
+      return <Navigate to={redirectPath} replace />;
+    }
   }
 
   console.log('Access granted to protected route');
