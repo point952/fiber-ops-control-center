@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -9,8 +10,6 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { LogOut, ArrowLeft } from 'lucide-react';
-
-type UserRole = 'admin' | 'operator' | 'technician';
 
 const AdminMigration: React.FC = () => {
   const { user, logout } = useAuth();
@@ -59,7 +58,8 @@ const AdminMigration: React.FC = () => {
 
       setProgress('Criando usuário admin no Auth...');
 
-      const authResult = await supabase.auth.signUp({
+      // Simplified auth signup call to avoid type complexity
+      const { data, error: authError } = await supabase.auth.signUp({
         email: 'admin@fiberops.com',
         password: '#point#123',
         options: {
@@ -71,12 +71,12 @@ const AdminMigration: React.FC = () => {
         }
       });
 
-      if (authResult.error) {
-        console.error('Erro ao criar usuário auth:', authResult.error);
-        throw new Error(`Erro ao criar usuário: ${authResult.error.message}`);
+      if (authError) {
+        console.error('Erro ao criar usuário auth:', authError);
+        throw new Error(`Erro ao criar usuário: ${authError.message}`);
       }
 
-      if (!authResult.data.user) {
+      if (!data.user) {
         throw new Error('Não foi possível criar o usuário');
       }
 
@@ -86,7 +86,7 @@ const AdminMigration: React.FC = () => {
         .from('profiles')
         .insert([
           {
-            id: authResult.data.user.id,
+            id: data.user.id,
             username: 'admin',
             role: 'admin',
             name: 'Administrador',
@@ -127,7 +127,8 @@ const AdminMigration: React.FC = () => {
         throw new Error('Já existe um usuário com este email ou nome de usuário');
       }
 
-      const authResult = await supabase.auth.signUp({
+      // Simplified auth signup call to avoid type complexity
+      const { data, error: authError } = await supabase.auth.signUp({
         email: email,
         password: password,
         options: {
@@ -139,11 +140,11 @@ const AdminMigration: React.FC = () => {
         }
       });
 
-      if (authResult.error) {
-        throw new Error(`Erro ao criar usuário: ${authResult.error.message}`);
+      if (authError) {
+        throw new Error(`Erro ao criar usuário: ${authError.message}`);
       }
 
-      if (!authResult.data.user) {
+      if (!data.user) {
         throw new Error('Não foi possível criar o usuário');
       }
 
@@ -151,7 +152,7 @@ const AdminMigration: React.FC = () => {
         .from('profiles')
         .insert([
           {
-            id: authResult.data.user.id,
+            id: data.user.id,
             username: username,
             role: role,
             name: name,
