@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useOperations } from '@/context/operations/OperationsContext';
 import { useAuth } from '@/context/AuthContext';
@@ -23,8 +24,9 @@ const OperationQueue: React.FC = () => {
 
     // Configurar intervalo para verificar novas operações
     const interval = setInterval(() => {
+      const oneMinuteAgo = new Date(Date.now() - 60000);
       const newNotifications = queue.filter(op => 
-        !op.operator_id && op.created_at > new Date(Date.now() - 60000).toISOString()
+        !op.operator_id && op.created_at > oneMinuteAgo
       ).length;
 
       if (newNotifications > notifications) {
@@ -103,4 +105,4 @@ const OperationQueue: React.FC = () => {
   );
 };
 
-export default OperationQueue; 
+export default OperationQueue;

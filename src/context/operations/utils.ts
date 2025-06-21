@@ -15,6 +15,7 @@ export const loadOperations = async (): Promise<Operation[]> => {
     return operations.map(op => ({
       ...op,
       type: op.type as 'installation' | 'cto' | 'rma',
+      status: op.status as any,
       data: op.data as Record<string, any>,
       created_at: new Date(op.created_at),
       assigned_at: op.assigned_at ? new Date(op.assigned_at) : undefined,
@@ -86,7 +87,7 @@ export const saveHistoryRecord = async (record: HistoryRecord): Promise<void> =>
   }
 };
 
-// Simple function to get user operations - removed complex technician_operations table logic
+// Simple function to get user operations - query operations table directly
 export const getUserOperations = async (userId: string): Promise<Operation[]> => {
   if (!userId) return [];
   
@@ -102,6 +103,7 @@ export const getUserOperations = async (userId: string): Promise<Operation[]> =>
     return operations.map(op => ({
       ...op,
       type: op.type as 'installation' | 'cto' | 'rma',
+      status: op.status as any,
       data: op.data as Record<string, any>,
       created_at: new Date(op.created_at),
       assigned_at: op.assigned_at ? new Date(op.assigned_at) : undefined,

@@ -56,12 +56,15 @@ export const OperationsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
       console.log('Operations fetched:', data);
       
-      // Cast the data to match our Operation type
+      // Convert string dates to Date objects and cast types properly
       const typedOperations: Operation[] = data.map(op => ({
         ...op,
         type: op.type as 'installation' | 'cto' | 'rma',
         status: op.status as OperationStatus,
-        data: op.data as Record<string, any>
+        data: op.data as Record<string, any>,
+        created_at: new Date(op.created_at),
+        assigned_at: op.assigned_at ? new Date(op.assigned_at) : undefined,
+        completed_at: op.completed_at ? new Date(op.completed_at) : undefined
       }));
       
       setOperations(typedOperations);
@@ -87,11 +90,13 @@ export const OperationsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
       console.log('History fetched:', data);
       
-      // Cast the data to match our HistoryRecord type
+      // Convert string dates to Date objects and cast types properly
       const typedHistory: HistoryRecord[] = data.map(record => ({
         ...record,
         type: record.type as 'installation' | 'cto' | 'rma',
-        data: record.data as Record<string, any>
+        data: record.data as Record<string, any>,
+        created_at: new Date(record.created_at),
+        completed_at: new Date(record.completed_at)
       }));
       
       setHistory(typedHistory);
@@ -161,9 +166,9 @@ export const OperationsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           feedback: operation.feedback,
           technician_response: operation.technician_response,
           assigned_operator: operation.assigned_operator,
-          assigned_at: operation.assigned_at,
+          assigned_at: operation.assigned_at ? operation.assigned_at.toISOString() : null,
           completed_by: operation.completed_by,
-          completed_at: operation.completed_at
+          completed_at: operation.completed_at ? operation.completed_at.toISOString() : null
         })
         .select()
         .single();
@@ -187,9 +192,16 @@ export const OperationsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     try {
       console.log('Updating operation:', id, updates);
       
+      // Convert Date objects to ISO strings for database storage
+      const dbUpdates = {
+        ...updates,
+        assigned_at: updates.assigned_at ? updates.assigned_at.toISOString() : undefined,
+        completed_at: updates.completed_at ? updates.completed_at.toISOString() : undefined
+      };
+      
       const { data, error } = await supabase
         .from('operations')
-        .update(updates)
+        .update(dbUpdates)
         .eq('id', id)
         .select()
         .single();
@@ -257,14 +269,13 @@ export const OperationsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           operation_id: id,
           type: operation.type,
           data: operation.data,
-          created_at: operation.created_at,
+          created_at: operation.created_at.toISOString(),
           completed_at: new Date().toISOString(),
           technician: operation.technician,
           technician_id: operation.technician_id,
           operator: completedBy,
           feedback: operation.feedback,
-          technician_response: operation.technician_response,
-          status: 'completed'
+          technician_response: operation.technician_response
         });
 
       if (historyError) throw historyError;

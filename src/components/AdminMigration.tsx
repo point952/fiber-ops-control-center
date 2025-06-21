@@ -36,11 +36,11 @@ const AdminMigration = () => {
 
     try {
       // Verificar se o usuário admin já existe
-      const { data: existingAdmin, error: checkError } = await supabase
+      const { data: existingAdmin } = await supabase
         .from('profiles')
         .select('id')
         .eq('username', 'admin')
-        .single();
+        .maybeSingle();
 
       if (existingAdmin) {
         setError('O usuário administrador já existe no sistema.');
@@ -109,7 +109,7 @@ const AdminMigration = () => {
 
     try {
       // Verificar se o usuário já existe
-      const { data: existingUser, error: checkError } = await supabase
+      const { data: existingUser } = await supabase
         .from('profiles')
         .select('id')
         .or(`email.eq.${newUser.email},username.eq.${newUser.username}`)
