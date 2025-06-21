@@ -35,6 +35,10 @@ const AdminMigration: React.FC = () => {
     navigate('/admin');
   };
 
+  const handleRoleChange = (value: string) => {
+    setRole(value as UserRole);
+  };
+
   const migrateAdmin = async () => {
     setIsLoading(true);
     setError(null);
@@ -176,10 +180,6 @@ const AdminMigration: React.FC = () => {
     }
   };
 
-  const handleRoleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setRole(e.target.value as UserRole);
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-100 to-gray-200">
       {/* Header with user info and logout */}
@@ -297,7 +297,7 @@ const AdminMigration: React.FC = () => {
                   <select
                     id="role"
                     value={role}
-                    onChange={handleRoleChange}
+                    onChange={(e) => handleRoleChange(e.target.value)}
                     className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <option value="admin">Administrador</option>
