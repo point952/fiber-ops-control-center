@@ -10,16 +10,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 const AdminMigration = () => {
-  const [isLoading, setIsLoading] = useState(false);
-  const [progress, setProgress] = useState('');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [progress, setProgress] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   
   // Individual state variables to avoid type recursion
-  const [email, setEmail] = useState('');
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [role, setRole] = useState('technician');
-  const [name, setName] = useState('');
+  const [email, setEmail] = useState<string>('');
+  const [username, setUsername] = useState<string>('');
+  const [password, setPassword] = useState<string>('');
+  const [role, setRole] = useState<string>('technician');
+  const [name, setName] = useState<string>('');
 
   const migrateAdmin = async () => {
     setIsLoading(true);
