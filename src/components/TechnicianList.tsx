@@ -1,6 +1,14 @@
 import { useEffect, useState } from 'react'
-import { technicianService, type Technician } from '@/services/technicianService'
+import { supabase } from '@/integrations/supabase/client'
 import { toast } from 'sonner'
+
+interface Technician {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  status: 'available' | 'busy' | 'offline';
+}
 
 export function TechnicianList() {
   const [technicians, setTechnicians] = useState<Technician[]>([])
@@ -13,8 +21,22 @@ export function TechnicianList() {
   async function loadTechnicians() {
     try {
       setLoading(true)
-      const data = await technicianService.getAllTechnicians()
-      setTechnicians(data)
+      const { data: profiles, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('role', 'technician')
+
+      if (error) throw error
+
+      const techniciansData = profiles.map(profile => ({
+        id: profile.id,
+        name: profile.name || 'Técnico',
+        email: profile.email || '',
+        phone: '',
+        status: 'available' as const
+      }))
+
+      setTechnicians(techniciansData)
     } catch (error) {
       toast.error('Erro ao carregar técnicos')
       console.error(error)
@@ -57,4 +79,4 @@ export function TechnicianList() {
       </div>
     </div>
   )
-} 
+}

@@ -9,7 +9,7 @@ import { ArrowLeft, Clock, CheckCircle2, XCircle } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 
 const TechnicianHistory = () => {
   const navigate = useNavigate();

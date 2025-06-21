@@ -1,5 +1,5 @@
 import { HistoryRecord, Operation } from './types';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 
 // Load operations from Supabase
 export const loadOperations = async (): Promise<Operation[]> => {

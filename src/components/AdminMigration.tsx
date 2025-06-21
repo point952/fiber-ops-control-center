@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
@@ -277,4 +277,4 @@ const AdminMigration = () => {
   );
 };
 
-export default AdminMigration; 
+export default AdminMigration;

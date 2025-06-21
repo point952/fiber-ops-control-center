@@ -1,5 +1,5 @@
-import { supabase } from '@/lib/supabase'
-import type { Database } from '@/lib/supabase'
+import { supabase } from '@/integrations/supabase/client';
+import { Database } from '@/integrations/supabase/types';
 
 type Operation = Database['public']['Tables']['operations']['Row']
 type Technician = Database['public']['Tables']['technicians']['Row']
@@ -80,4 +80,4 @@ export const databaseService = {
     if (error) throw error
     return data as Technician
   }
-} 
+}

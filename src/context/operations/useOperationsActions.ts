@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { HistoryRecord, Operation, OperationStatus } from './types';
 import { toast } from 'sonner';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 
 export const useOperationsActions = (
   initialOperations: Operation[],

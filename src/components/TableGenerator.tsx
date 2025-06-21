@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from '@/context/AuthContext';
 import { useOperations } from '@/context/operations/OperationsContext';
 import { toast } from "sonner";
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 
 interface TableGeneratorProps {
   formData: Record<string, string>;
