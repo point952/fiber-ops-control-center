@@ -14,27 +14,26 @@ const AdminMigration = () => {
   const [progress, setProgress] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   
-  // Individual state variables to avoid type recursion
   const [email, setEmail] = useState<string>('');
   const [username, setUsername] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [role, setRole] = useState<string>('technician');
   const [name, setName] = useState<string>('');
 
-  const migrateAdmin = async () => {
+  const migrateAdmin = async (): Promise<void> => {
     setIsLoading(true);
     setError(null);
     setProgress('Iniciando migração do administrador...');
 
     try {
       // Verificar se o usuário admin já existe
-      const { data: existingAdmin } = await supabase
+      const existingAdminResult = await supabase
         .from('profiles')
         .select('id')
         .eq('username', 'admin')
         .maybeSingle();
 
-      if (existingAdmin) {
+      if (existingAdminResult.data) {
         setError('O usuário administrador já existe no sistema.');
         return;
       }
@@ -42,7 +41,7 @@ const AdminMigration = () => {
       setProgress('Criando usuário admin no Auth...');
 
       // Criar usuário admin no Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      const authResult = await supabase.auth.signUp({
         email: 'admin@fiberops.com',
         password: '#point#123',
         options: {
@@ -54,23 +53,23 @@ const AdminMigration = () => {
         }
       });
 
-      if (authError) {
-        console.error('Erro ao criar usuário auth:', authError);
-        throw new Error(`Erro ao criar usuário: ${authError.message}`);
+      if (authResult.error) {
+        console.error('Erro ao criar usuário auth:', authResult.error);
+        throw new Error(`Erro ao criar usuário: ${authResult.error.message}`);
       }
 
-      if (!authData.user) {
+      if (!authResult.data.user) {
         throw new Error('Não foi possível criar o usuário');
       }
 
       setProgress('Usuário admin criado no Auth...');
 
       // Criar perfil do admin no Supabase
-      const { error: profileError } = await supabase
+      const profileResult = await supabase
         .from('profiles')
         .insert([
           {
-            id: authData.user.id,
+            id: authResult.data.user.id,
             username: 'admin',
             role: 'admin',
             name: 'Administrador',
@@ -78,41 +77,42 @@ const AdminMigration = () => {
           }
         ]);
 
-      if (profileError) {
-        console.error('Erro ao criar perfil:', profileError);
-        throw new Error(`Erro ao criar perfil: ${profileError.message}`);
+      if (profileResult.error) {
+        console.error('Erro ao criar perfil:', profileResult.error);
+        throw new Error(`Erro ao criar perfil: ${profileResult.error.message}`);
       }
 
       setProgress('Perfil do admin criado com sucesso!');
       toast.success('Usuário administrador migrado com sucesso!');
-    } catch (error) {
-      console.error('Erro durante a migração do admin:', error);
-      setError(error instanceof Error ? error.message : 'Erro desconhecido durante a migração');
+    } catch (err) {
+      console.error('Erro durante a migração do admin:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido durante a migração';
+      setError(errorMessage);
       toast.error('Erro durante a migração do administrador');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const createNewUser = async () => {
+  const createNewUser = async (): Promise<void> => {
     setIsLoading(true);
     setError(null);
     setProgress('Criando novo usuário...');
 
     try {
       // Verificar se o usuário já existe
-      const { data: existingUser } = await supabase
+      const existingUserResult = await supabase
         .from('profiles')
         .select('id')
         .or(`email.eq.${email},username.eq.${username}`)
         .maybeSingle();
 
-      if (existingUser) {
+      if (existingUserResult.data) {
         throw new Error('Já existe um usuário com este email ou nome de usuário');
       }
 
       // Criar usuário no Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      const authResult = await supabase.auth.signUp({
         email: email,
         password: password,
         options: {
@@ -124,20 +124,20 @@ const AdminMigration = () => {
         }
       });
 
-      if (authError) {
-        throw new Error(`Erro ao criar usuário: ${authError.message}`);
+      if (authResult.error) {
+        throw new Error(`Erro ao criar usuário: ${authResult.error.message}`);
       }
 
-      if (!authData.user) {
+      if (!authResult.data.user) {
         throw new Error('Não foi possível criar o usuário');
       }
 
       // Criar perfil no Supabase
-      const { error: profileError } = await supabase
+      const profileResult = await supabase
         .from('profiles')
         .insert([
           {
-            id: authData.user.id,
+            id: authResult.data.user.id,
             username: username,
             role: role,
             name: name,
@@ -145,8 +145,8 @@ const AdminMigration = () => {
           }
         ]);
 
-      if (profileError) {
-        throw new Error(`Erro ao criar perfil: ${profileError.message}`);
+      if (profileResult.error) {
+        throw new Error(`Erro ao criar perfil: ${profileResult.error.message}`);
       }
 
       toast.success('Usuário criado com sucesso!');
@@ -157,16 +157,17 @@ const AdminMigration = () => {
       setPassword('');
       setRole('technician');
       setName('');
-    } catch (error) {
-      console.error('Erro ao criar usuário:', error);
-      setError(error instanceof Error ? error.message : 'Erro desconhecido');
+    } catch (err) {
+      console.error('Erro ao criar usuário:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
+      setError(errorMessage);
       toast.error('Erro ao criar usuário');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleRoleChange = (value: string) => {
+  const handleRoleChange = (value: string): void => {
     setRole(value);
   };
 
