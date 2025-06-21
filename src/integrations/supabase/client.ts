@@ -6,26 +6,49 @@ import type { Database } from './types';
 const SUPABASE_URL = "https://muqtzyvfqngzzpbupwmf.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im11cXR6eXZmcW5nenpwYnVwd21mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc0ODcwMzcsImV4cCI6MjA2MzA2MzAzN30.d7H4IaxZc2BxnQ42ZWnrnivOfXxhDbf3BENpE43cOzs";
 
-// Create a single instance to avoid multiple client warnings
-let supabaseInstance: ReturnType<typeof createClient<Database>> | null = null;
+// Enhanced storage implementation for better session management
+const customStorage = {
+  getItem: (key: string): string | null => {
+    try {
+      const value = localStorage.getItem(key);
+      return value ? JSON.parse(value) : null;
+    } catch (error) {
+      console.error('Error getting item from storage:', error);
+      return null;
+    }
+  },
+  setItem: (key: string, value: any): void => {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch (error) {
+      console.error('Error setting item in storage:', error);
+    }
+  },
+  removeItem: (key: string): void => {
+    try {
+      localStorage.removeItem(key);
+    } catch (error) {
+      console.error('Error removing item from storage:', error);
+    }
+  }
+};
 
-export const supabase = supabaseInstance || (supabaseInstance = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+// Create a single instance to avoid multiple client warnings
+export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
     storageKey: 'fiber-ops-session',
-    storage: {
-      getItem: (key) => {
-        const value = localStorage.getItem(key);
-        return value ? JSON.parse(value) : null;
-      },
-      setItem: (key, value) => {
-        localStorage.setItem(key, JSON.stringify(value));
-      },
-      removeItem: (key) => {
-        localStorage.removeItem(key);
-      }
+    storage: customStorage,
+    flowType: 'pkce'
+  },
+  global: {
+    headers: {
+      'x-my-custom-header': 'fiber-ops-system'
     }
+  },
+  db: {
+    schema: 'public'
   }
-}));
+});

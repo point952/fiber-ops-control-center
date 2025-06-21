@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -16,15 +17,20 @@ const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const checkRoutePermission = useCallback((path: string, userRole: string): boolean => {
+    if (path.startsWith('/admin')) return userRole === 'admin';
+    if (path.startsWith('/operator')) return userRole === 'operator';
+    if (path === '/') return userRole === 'technician';
+    return true;
+  }, []);
+
   // Redirect authenticated users
   useEffect(() => {
     if (!authLoading && isAuthenticated && user) {
       console.log('User authenticated, determining redirect path for role:', user.role);
       
-      // Verificar se há um redirecionamento anterior salvo
       const from = (location.state as any)?.from?.pathname;
       
-      // Determinar redirecionamento baseado na role
       let redirectPath = '/';
       
       switch (user.role) {
@@ -41,9 +47,7 @@ const Login = () => {
           redirectPath = '/';
       }
 
-      // Se há um local de origem válido e o usuário tem permissão, use-o
       if (from && from !== '/login') {
-        // Verificar se o usuário tem permissão para acessar a rota de origem
         const hasPermission = checkRoutePermission(from, user.role);
         if (hasPermission) {
           redirectPath = from;
@@ -53,16 +57,9 @@ const Login = () => {
       console.log('Redirecting to:', redirectPath);
       navigate(redirectPath, { replace: true });
     }
-  }, [isAuthenticated, user, authLoading, navigate, location.state]);
+  }, [isAuthenticated, user, authLoading, navigate, location.state, checkRoutePermission]);
 
-  const checkRoutePermission = (path: string, userRole: string): boolean => {
-    if (path.startsWith('/admin')) return userRole === 'admin';
-    if (path.startsWith('/operator')) return userRole === 'operator';
-    if (path === '/') return userRole === 'technician';
-    return true; // Rotas públicas
-  };
-
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (isLoading || authLoading) return;
     
@@ -75,27 +72,28 @@ const Login = () => {
       if (!success) {
         setError('Credenciais inválidas');
       }
-      // O redirecionamento será tratado pelo useEffect acima
     } catch (err) {
       console.error('Login error:', err);
       setError('Ocorreu um erro ao tentar fazer login');
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [email, password, login, isLoading, authLoading]);
+
+  const LoadingCard = () => (
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-gray-100 to-gray-200 p-4">
+      <Card className="w-full max-w-md">
+        <CardContent className="p-6 text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p>Verificando autenticação...</p>
+        </CardContent>
+      </Card>
+    </div>
+  );
 
   // Show loading while checking authentication
   if (authLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-gray-100 to-gray-200 p-4">
-        <Card className="w-full max-w-md">
-          <CardContent className="p-6 text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p>Verificando autenticação...</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
+    return <LoadingCard />;
   }
 
   // Don't render the login form if user is authenticated
@@ -140,6 +138,7 @@ const Login = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 disabled={isLoading}
+                autoComplete="email"
               />
             </div>
             <div className="space-y-2">
@@ -152,6 +151,7 @@ const Login = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 disabled={isLoading}
+                autoComplete="current-password"
               />
             </div>
           </CardContent>
@@ -159,7 +159,7 @@ const Login = () => {
             <Button 
               type="submit" 
               className="w-full" 
-              disabled={isLoading || authLoading}
+              disabled={isLoading || authLoading || !email || !password}
             >
               {isLoading ? "Entrando..." : "Entrar"}
             </Button>
