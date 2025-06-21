@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useOperations } from '../context/operations/OperationsContext';
@@ -27,7 +28,7 @@ import {
   TableHeader,
   TableRow,
 } from '../components/ui/table';
-import { supabase } from '../lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import OperationQueue from '@/components/Operator/OperationQueue';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';

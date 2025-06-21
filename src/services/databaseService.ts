@@ -1,11 +1,11 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/integrations/supabase/types';
 
 type Operation = Database['public']['Tables']['operations']['Row']
-type Technician = Database['public']['Tables']['technicians']['Row']
 
 export const databaseService = {
-  // Operações
+  // Operations
   async getOperations() {
     const { data, error } = await supabase
       .from('operations')
@@ -13,21 +13,10 @@ export const databaseService = {
       .order('created_at', { ascending: false })
     
     if (error) throw error
-    return data
+    return data as Operation[]
   },
 
-  async getOperationById(id: string) {
-    const { data, error } = await supabase
-      .from('operations')
-      .select('*')
-      .eq('id', id)
-      .single()
-    
-    if (error) throw error
-    return data
-  },
-
-  async createOperation(operation: Omit<Operation, 'id' | 'created_at' | 'updated_at'>) {
+  async createOperation(operation: Omit<Operation, 'id' | 'created_at'>) {
     const { data, error } = await supabase
       .from('operations')
       .insert(operation)
@@ -35,7 +24,7 @@ export const databaseService = {
       .single()
     
     if (error) throw error
-    return data
+    return data as Operation
   },
 
   async updateOperation(id: string, updates: Partial<Operation>) {
@@ -47,7 +36,7 @@ export const databaseService = {
       .single()
     
     if (error) throw error
-    return data
+    return data as Operation
   },
 
   async deleteOperation(id: string) {
@@ -59,25 +48,36 @@ export const databaseService = {
     if (error) throw error
   },
 
-  // Técnicos
-  async getTechnicians() {
+  // Operation History
+  async getOperationHistory() {
     const { data, error } = await supabase
-      .from('technicians')
+      .from('operation_history')
       .select('*')
+      .order('completed_at', { ascending: false })
     
     if (error) throw error
-    return data as Technician[]
+    return data
   },
 
-  async updateTechnicianStatus(id: string, status: Technician['status']) {
+  // Profiles (for technician data)
+  async getTechnicians() {
     const { data, error } = await supabase
-      .from('technicians')
-      .update({ status })
-      .eq('id', id)
-      .select()
+      .from('profiles')
+      .select('*')
+      .eq('role', 'technician')
+    
+    if (error) throw error
+    return data
+  },
+
+  async getProfile(userId: string) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
       .single()
     
     if (error) throw error
-    return data as Technician
+    return data
   }
 }

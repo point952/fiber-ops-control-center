@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from 'react';
 import { HistoryRecord, Operation, OperationStatus } from './types';
 import { toast } from 'sonner';
@@ -22,17 +23,26 @@ export const useOperationsActions = (
         .insert({
           type,
           data,
+          technician,
           technician_id: technicianId,
-          status: 'pending',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          status: 'pending'
         })
         .select()
         .single();
 
       if (error) throw error;
 
-      setOperations(prev => [newOperation, ...prev]);
+      const typedOperation: Operation = {
+        ...newOperation,
+        type: newOperation.type as 'installation' | 'cto' | 'rma',
+        status: newOperation.status as OperationStatus,
+        data: newOperation.data as Record<string, any>,
+        created_at: new Date(newOperation.created_at),
+        assigned_at: newOperation.assigned_at ? new Date(newOperation.assigned_at) : undefined,
+        completed_at: newOperation.completed_at ? new Date(newOperation.completed_at) : undefined
+      };
+
+      setOperations(prev => [typedOperation, ...prev]);
       toast.success('Operação adicionada com sucesso!');
     } catch (error) {
       console.error('Erro ao adicionar operação:', error);
@@ -45,18 +55,25 @@ export const useOperationsActions = (
     try {
       const { data: updatedOperation, error } = await supabase
         .from('operations')
-        .update({ 
-          status,
-          updated_at: new Date().toISOString()
-        })
+        .update({ status })
         .eq('id', id)
         .select()
         .single();
 
       if (error) throw error;
 
+      const typedOperation: Operation = {
+        ...updatedOperation,
+        type: updatedOperation.type as 'installation' | 'cto' | 'rma',
+        status: updatedOperation.status as OperationStatus,
+        data: updatedOperation.data as Record<string, any>,
+        created_at: new Date(updatedOperation.created_at),
+        assigned_at: updatedOperation.assigned_at ? new Date(updatedOperation.assigned_at) : undefined,
+        completed_at: updatedOperation.completed_at ? new Date(updatedOperation.completed_at) : undefined
+      };
+
       setOperations(prev => prev.map(op => 
-        op.id === id ? updatedOperation : op
+        op.id === id ? typedOperation : op
       ));
       
       toast.success('Status atualizado com sucesso!');
@@ -71,18 +88,25 @@ export const useOperationsActions = (
     try {
       const { data: updatedOperation, error } = await supabase
         .from('operations')
-        .update({ 
-          feedback,
-          updated_at: new Date().toISOString()
-        })
+        .update({ feedback })
         .eq('id', id)
         .select()
         .single();
 
       if (error) throw error;
 
+      const typedOperation: Operation = {
+        ...updatedOperation,
+        type: updatedOperation.type as 'installation' | 'cto' | 'rma',
+        status: updatedOperation.status as OperationStatus,
+        data: updatedOperation.data as Record<string, any>,
+        created_at: new Date(updatedOperation.created_at),
+        assigned_at: updatedOperation.assigned_at ? new Date(updatedOperation.assigned_at) : undefined,
+        completed_at: updatedOperation.completed_at ? new Date(updatedOperation.completed_at) : undefined
+      };
+
       setOperations(prev => prev.map(op => 
-        op.id === id ? updatedOperation : op
+        op.id === id ? typedOperation : op
       ));
       
       toast.success('Feedback atualizado com sucesso!');
@@ -97,18 +121,25 @@ export const useOperationsActions = (
     try {
       const { data: updatedOperation, error } = await supabase
         .from('operations')
-        .update({ 
-          technician_response: response,
-          updated_at: new Date().toISOString()
-        })
+        .update({ technician_response: response })
         .eq('id', id)
         .select()
         .single();
 
       if (error) throw error;
 
+      const typedOperation: Operation = {
+        ...updatedOperation,
+        type: updatedOperation.type as 'installation' | 'cto' | 'rma',
+        status: updatedOperation.status as OperationStatus,
+        data: updatedOperation.data as Record<string, any>,
+        created_at: new Date(updatedOperation.created_at),
+        assigned_at: updatedOperation.assigned_at ? new Date(updatedOperation.assigned_at) : undefined,
+        completed_at: updatedOperation.completed_at ? new Date(updatedOperation.completed_at) : undefined
+      };
+
       setOperations(prev => prev.map(op => 
-        op.id === id ? updatedOperation : op
+        op.id === id ? typedOperation : op
       ));
       
       toast.success('Resposta enviada com sucesso!');
@@ -125,8 +156,7 @@ export const useOperationsActions = (
         .from('operations')
         .update({ 
           assigned_operator: operatorName,
-          assigned_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          assigned_at: new Date().toISOString()
         })
         .eq('id', operationId)
         .select()
@@ -134,8 +164,18 @@ export const useOperationsActions = (
 
       if (error) throw error;
 
+      const typedOperation: Operation = {
+        ...updatedOperation,
+        type: updatedOperation.type as 'installation' | 'cto' | 'rma',
+        status: updatedOperation.status as OperationStatus,
+        data: updatedOperation.data as Record<string, any>,
+        created_at: new Date(updatedOperation.created_at),
+        assigned_at: updatedOperation.assigned_at ? new Date(updatedOperation.assigned_at) : undefined,
+        completed_at: updatedOperation.completed_at ? new Date(updatedOperation.completed_at) : undefined
+      };
+
       setOperations(prev => prev.map(op => 
-        op.id === operationId ? updatedOperation : op
+        op.id === operationId ? typedOperation : op
       ));
       
       toast.success('Operador atribuído com sucesso!');
@@ -152,8 +192,7 @@ export const useOperationsActions = (
         .from('operations')
         .update({ 
           assigned_operator: null,
-          assigned_at: null,
-          updated_at: new Date().toISOString()
+          assigned_at: null
         })
         .eq('id', operationId)
         .select()
@@ -161,8 +200,18 @@ export const useOperationsActions = (
 
       if (error) throw error;
 
+      const typedOperation: Operation = {
+        ...updatedOperation,
+        type: updatedOperation.type as 'installation' | 'cto' | 'rma',
+        status: updatedOperation.status as OperationStatus,
+        data: updatedOperation.data as Record<string, any>,
+        created_at: new Date(updatedOperation.created_at),
+        assigned_at: updatedOperation.assigned_at ? new Date(updatedOperation.assigned_at) : undefined,
+        completed_at: updatedOperation.completed_at ? new Date(updatedOperation.completed_at) : undefined
+      };
+
       setOperations(prev => prev.map(op => 
-        op.id === operationId ? updatedOperation : op
+        op.id === operationId ? typedOperation : op
       ));
       
       toast.success('Atribuição removida com sucesso!');
@@ -185,9 +234,9 @@ export const useOperationsActions = (
           operation_id: operationId,
           type: operation.type,
           data: operation.data,
-          created_at: operation.created_at,
+          created_at: operation.created_at.toISOString(),
           completed_at: new Date().toISOString(),
-          technician: operation.technician_id,
+          technician: operation.technician,
           technician_id: operation.technician_id,
           operator: operatorName,
           feedback: operation.feedback,
@@ -206,9 +255,17 @@ export const useOperationsActions = (
 
       if (deleteError) throw deleteError;
 
+      const typedHistoryRecord: HistoryRecord = {
+        ...historyRecord,
+        type: historyRecord.type as 'installation' | 'cto' | 'rma',
+        data: historyRecord.data as Record<string, any>,
+        created_at: new Date(historyRecord.created_at),
+        completed_at: new Date(historyRecord.completed_at)
+      };
+
       // Atualizar estados
       setOperations(prev => prev.filter(op => op.id !== operationId));
-      setHistory(prev => [historyRecord, ...prev]);
+      setHistory(prev => [typedHistoryRecord, ...prev]);
       
       toast.success('Operação concluída com sucesso!');
     } catch (error) {
