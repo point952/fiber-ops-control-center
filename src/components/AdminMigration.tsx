@@ -11,7 +11,8 @@ import { Label } from '@/components/ui/label';
 
 type UserRole = 'admin' | 'operator' | 'technician';
 
-interface NewUserForm {
+// Simplified interface to avoid deep type instantiation
+interface NewUserFormData {
   email: string;
   username: string;
   password: string;
@@ -23,11 +24,13 @@ const AdminMigration = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [progress, setProgress] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
-  const [newUser, setNewUser] = useState<NewUserForm>({
+  
+  // Initialize with explicit type annotation to avoid inference issues
+  const [newUser, setNewUser] = useState<NewUserFormData>({
     email: '',
     username: '',
     password: '',
-    role: 'technician',
+    role: 'technician' as UserRole,
     name: ''
   });
 
@@ -164,7 +167,7 @@ const AdminMigration = () => {
         email: '',
         username: '',
         password: '',
-        role: 'technician',
+        role: 'technician' as UserRole,
         name: ''
       });
     } catch (error) {
