@@ -9,24 +9,37 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
+interface AdminMigrationState {
+  isLoading: boolean;
+  progress: string;
+  error: string | null;
+  email: string;
+  username: string;
+  password: string;
+  role: string;
+  name: string;
+}
+
 const AdminMigration: React.FC = () => {
-  const [isLoading, setIsLoading] = useState(false);
-  const [progress, setProgress] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  
-  const [email, setEmail] = useState('');
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [role, setRole] = useState('technician');
-  const [name, setName] = useState('');
+  const [state, setState] = useState<AdminMigrationState>({
+    isLoading: false,
+    progress: '',
+    error: null,
+    email: '',
+    username: '',
+    password: '',
+    role: 'technician',
+    name: ''
+  });
+
+  const updateState = (updates: Partial<AdminMigrationState>) => {
+    setState(prev => ({ ...prev, ...updates }));
+  };
 
   const migrateAdmin = async () => {
-    setIsLoading(true);
-    setError(null);
-    setProgress('Iniciando migração do administrador...');
+    updateState({ isLoading: true, error: null, progress: 'Iniciando migração do administrador...' });
 
     try {
-      // Verificar se o usuário admin já existe
       const existingAdminResult = await supabase
         .from('profiles')
         .select('id')
@@ -34,13 +47,12 @@ const AdminMigration: React.FC = () => {
         .maybeSingle();
 
       if (existingAdminResult.data) {
-        setError('O usuário administrador já existe no sistema.');
+        updateState({ error: 'O usuário administrador já existe no sistema.', isLoading: false });
         return;
       }
 
-      setProgress('Criando usuário admin no Auth...');
+      updateState({ progress: 'Criando usuário admin no Auth...' });
 
-      // Criar usuário admin no Supabase Auth
       const authResult = await supabase.auth.signUp({
         email: 'admin@fiberops.com',
         password: '#point#123',
@@ -62,9 +74,8 @@ const AdminMigration: React.FC = () => {
         throw new Error('Não foi possível criar o usuário');
       }
 
-      setProgress('Usuário admin criado no Auth...');
+      updateState({ progress: 'Usuário admin criado no Auth...' });
 
-      // Criar perfil do admin no Supabase
       const profileResult = await supabase
         .from('profiles')
         .insert([
@@ -82,44 +93,38 @@ const AdminMigration: React.FC = () => {
         throw new Error(`Erro ao criar perfil: ${profileResult.error.message}`);
       }
 
-      setProgress('Perfil do admin criado com sucesso!');
+      updateState({ progress: 'Perfil do admin criado com sucesso!', isLoading: false });
       toast.success('Usuário administrador migrado com sucesso!');
     } catch (err) {
       console.error('Erro durante a migração do admin:', err);
       const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido durante a migração';
-      setError(errorMessage);
+      updateState({ error: errorMessage, isLoading: false });
       toast.error('Erro durante a migração do administrador');
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const createNewUser = async () => {
-    setIsLoading(true);
-    setError(null);
-    setProgress('Criando novo usuário...');
+    updateState({ isLoading: true, error: null, progress: 'Criando novo usuário...' });
 
     try {
-      // Verificar se o usuário já existe
       const existingUserResult = await supabase
         .from('profiles')
         .select('id')
-        .or(`email.eq.${email},username.eq.${username}`)
+        .or(`email.eq.${state.email},username.eq.${state.username}`)
         .maybeSingle();
 
       if (existingUserResult.data) {
         throw new Error('Já existe um usuário com este email ou nome de usuário');
       }
 
-      // Criar usuário no Supabase Auth
       const authResult = await supabase.auth.signUp({
-        email: email,
-        password: password,
+        email: state.email,
+        password: state.password,
         options: {
           data: {
-            username: username,
-            role: role,
-            name: name
+            username: state.username,
+            role: state.role,
+            name: state.name
           }
         }
       });
@@ -132,16 +137,15 @@ const AdminMigration: React.FC = () => {
         throw new Error('Não foi possível criar o usuário');
       }
 
-      // Criar perfil no Supabase
       const profileResult = await supabase
         .from('profiles')
         .insert([
           {
             id: authResult.data.user.id,
-            username: username,
-            role: role,
-            name: name,
-            email: email
+            username: state.username,
+            role: state.role,
+            name: state.name,
+            email: state.email
           }
         ]);
 
@@ -151,40 +155,20 @@ const AdminMigration: React.FC = () => {
 
       toast.success('Usuário criado com sucesso!');
       
-      // Reset form
-      setEmail('');
-      setUsername('');
-      setPassword('');
-      setRole('technician');
-      setName('');
+      updateState({
+        email: '',
+        username: '',
+        password: '',
+        role: 'technician',
+        name: '',
+        isLoading: false
+      });
     } catch (err) {
       console.error('Erro ao criar usuário:', err);
       const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
-      setError(errorMessage);
+      updateState({ error: errorMessage, isLoading: false });
       toast.error('Erro ao criar usuário');
-    } finally {
-      setIsLoading(false);
     }
-  };
-
-  const handleRoleChange = (value: string) => {
-    setRole(value);
-  };
-
-  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setEmail(e.target.value);
-  };
-
-  const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setUsername(e.target.value);
-  };
-
-  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setName(e.target.value);
-  };
-
-  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setPassword(e.target.value);
   };
 
   return (
@@ -199,24 +183,24 @@ const AdminMigration: React.FC = () => {
             Certifique-se de que o Supabase está configurado corretamente antes de prosseguir.
           </p>
           
-          {error && (
+          {state.error && (
             <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
+              <AlertDescription>{state.error}</AlertDescription>
             </Alert>
           )}
           
-          {progress && (
+          {state.progress && (
             <div className="p-4 bg-gray-100 rounded-md">
-              <p className="text-sm">{progress}</p>
+              <p className="text-sm">{state.progress}</p>
             </div>
           )}
 
           <Button 
             onClick={migrateAdmin} 
-            disabled={isLoading}
+            disabled={state.isLoading}
             className="w-full"
           >
-            {isLoading ? 'Migrando...' : 'Criar Administrador'}
+            {state.isLoading ? 'Migrando...' : 'Criar Administrador'}
           </Button>
 
           <div className="border-t pt-4 mt-4">
@@ -228,8 +212,8 @@ const AdminMigration: React.FC = () => {
                 <Input
                   id="email"
                   type="email"
-                  value={email}
-                  onChange={handleEmailChange}
+                  value={state.email}
+                  onChange={(e) => updateState({ email: e.target.value })}
                   placeholder="email@exemplo.com"
                 />
               </div>
@@ -238,8 +222,8 @@ const AdminMigration: React.FC = () => {
                 <Label htmlFor="username">Nome de Usuário</Label>
                 <Input
                   id="username"
-                  value={username}
-                  onChange={handleUsernameChange}
+                  value={state.username}
+                  onChange={(e) => updateState({ username: e.target.value })}
                   placeholder="nomeusuario"
                 />
               </div>
@@ -248,8 +232,8 @@ const AdminMigration: React.FC = () => {
                 <Label htmlFor="name">Nome Completo</Label>
                 <Input
                   id="name"
-                  value={name}
-                  onChange={handleNameChange}
+                  value={state.name}
+                  onChange={(e) => updateState({ name: e.target.value })}
                   placeholder="Nome Completo"
                 />
               </div>
@@ -259,8 +243,8 @@ const AdminMigration: React.FC = () => {
                 <Input
                   id="password"
                   type="password"
-                  value={password}
-                  onChange={handlePasswordChange}
+                  value={state.password}
+                  onChange={(e) => updateState({ password: e.target.value })}
                   placeholder="********"
                 />
               </div>
@@ -268,8 +252,8 @@ const AdminMigration: React.FC = () => {
               <div>
                 <Label htmlFor="role">Papel</Label>
                 <Select
-                  value={role}
-                  onValueChange={handleRoleChange}
+                  value={state.role}
+                  onValueChange={(value) => updateState({ role: value })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione o papel" />
@@ -284,10 +268,10 @@ const AdminMigration: React.FC = () => {
 
               <Button 
                 onClick={createNewUser} 
-                disabled={isLoading}
+                disabled={state.isLoading}
                 className="w-full"
               >
-                {isLoading ? 'Criando...' : 'Criar Usuário'}
+                {state.isLoading ? 'Criando...' : 'Criar Usuário'}
               </Button>
             </div>
           </div>
