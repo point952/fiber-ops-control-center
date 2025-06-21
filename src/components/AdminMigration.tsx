@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -175,12 +176,24 @@ const AdminMigration = () => {
     }
   };
 
-  const updateField = (field: keyof NewUserForm, value: string) => {
-    if (field === 'role') {
-      setNewUser(prev => ({ ...prev, [field]: value as UserRole }));
-    } else {
-      setNewUser(prev => ({ ...prev, [field]: value }));
-    }
+  const updateEmail = (value: string) => {
+    setNewUser(prev => ({ ...prev, email: value }));
+  };
+
+  const updateUsername = (value: string) => {
+    setNewUser(prev => ({ ...prev, username: value }));
+  };
+
+  const updateName = (value: string) => {
+    setNewUser(prev => ({ ...prev, name: value }));
+  };
+
+  const updatePassword = (value: string) => {
+    setNewUser(prev => ({ ...prev, password: value }));
+  };
+
+  const updateRole = (value: string) => {
+    setNewUser(prev => ({ ...prev, role: value as UserRole }));
   };
 
   return (
@@ -225,7 +238,7 @@ const AdminMigration = () => {
                   id="email"
                   type="email"
                   value={newUser.email}
-                  onChange={(e) => updateField('email', e.target.value)}
+                  onChange={(e) => updateEmail(e.target.value)}
                   placeholder="email@exemplo.com"
                 />
               </div>
@@ -235,7 +248,7 @@ const AdminMigration = () => {
                 <Input
                   id="username"
                   value={newUser.username}
-                  onChange={(e) => updateField('username', e.target.value)}
+                  onChange={(e) => updateUsername(e.target.value)}
                   placeholder="nomeusuario"
                 />
               </div>
@@ -245,7 +258,7 @@ const AdminMigration = () => {
                 <Input
                   id="name"
                   value={newUser.name}
-                  onChange={(e) => updateField('name', e.target.value)}
+                  onChange={(e) => updateName(e.target.value)}
                   placeholder="Nome Completo"
                 />
               </div>
@@ -256,7 +269,7 @@ const AdminMigration = () => {
                   id="password"
                   type="password"
                   value={newUser.password}
-                  onChange={(e) => updateField('password', e.target.value)}
+                  onChange={(e) => updatePassword(e.target.value)}
                   placeholder="********"
                 />
               </div>
@@ -265,7 +278,7 @@ const AdminMigration = () => {
                 <Label htmlFor="role">Papel</Label>
                 <Select
                   value={newUser.role}
-                  onValueChange={(value) => updateField('role', value)}
+                  onValueChange={updateRole}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione o papel" />
