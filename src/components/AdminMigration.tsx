@@ -58,25 +58,20 @@ const AdminMigration: React.FC = () => {
 
       setProgress('Criando usuário admin no Auth...');
 
-      // Simplified auth signup call to avoid type complexity
-      const { data, error: authError } = await supabase.auth.signUp({
+      // Create user with explicit typing to avoid deep type inference
+      const signUpData = {
         email: 'admin@fiberops.com',
-        password: '#point#123',
-        options: {
-          data: {
-            username: 'admin',
-            role: 'admin',
-            name: 'Administrador'
-          }
-        }
-      });
+        password: '#point#123'
+      };
+
+      const { data: authData, error: authError } = await supabase.auth.signUp(signUpData);
 
       if (authError) {
         console.error('Erro ao criar usuário auth:', authError);
         throw new Error(`Erro ao criar usuário: ${authError.message}`);
       }
 
-      if (!data.user) {
+      if (!authData.user) {
         throw new Error('Não foi possível criar o usuário');
       }
 
@@ -86,7 +81,7 @@ const AdminMigration: React.FC = () => {
         .from('profiles')
         .insert([
           {
-            id: data.user.id,
+            id: authData.user.id,
             username: 'admin',
             role: 'admin',
             name: 'Administrador',
@@ -127,24 +122,19 @@ const AdminMigration: React.FC = () => {
         throw new Error('Já existe um usuário com este email ou nome de usuário');
       }
 
-      // Simplified auth signup call to avoid type complexity
-      const { data, error: authError } = await supabase.auth.signUp({
+      // Create user with explicit typing to avoid deep type inference
+      const signUpData = {
         email: email,
-        password: password,
-        options: {
-          data: {
-            username: username,
-            role: role,
-            name: name
-          }
-        }
-      });
+        password: password
+      };
+
+      const { data: authData, error: authError } = await supabase.auth.signUp(signUpData);
 
       if (authError) {
         throw new Error(`Erro ao criar usuário: ${authError.message}`);
       }
 
-      if (!data.user) {
+      if (!authData.user) {
         throw new Error('Não foi possível criar o usuário');
       }
 
@@ -152,7 +142,7 @@ const AdminMigration: React.FC = () => {
         .from('profiles')
         .insert([
           {
-            id: data.user.id,
+            id: authData.user.id,
             username: username,
             role: role,
             name: name,
