@@ -13,7 +13,7 @@ interface NewUser {
   email: string;
   username: string;
   password: string;
-  role: 'admin' | 'operator' | 'technician';
+  role: string;
   name: string;
 }
 
@@ -174,10 +174,6 @@ const AdminMigration = () => {
     }
   };
 
-  const handleRoleChange = (value: string) => {
-    setNewUser({ ...newUser, role: value as 'admin' | 'operator' | 'technician' });
-  };
-
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
       <Card className="w-full max-w-md">
@@ -260,7 +256,7 @@ const AdminMigration = () => {
                 <Label htmlFor="role">Papel</Label>
                 <Select
                   value={newUser.role}
-                  onValueChange={handleRoleChange}
+                  onValueChange={(value) => setNewUser({ ...newUser, role: value })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione o papel" />

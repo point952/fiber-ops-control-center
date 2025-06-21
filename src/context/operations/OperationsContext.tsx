@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Operation, HistoryRecord, OperationStatus } from './types';
@@ -192,12 +191,18 @@ export const OperationsProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     try {
       console.log('Updating operation:', id, updates);
       
-      // Convert Date objects to ISO strings for database storage
-      const dbUpdates = {
-        ...updates,
-        assigned_at: updates.assigned_at ? updates.assigned_at.toISOString() : undefined,
-        completed_at: updates.completed_at ? updates.completed_at.toISOString() : undefined
-      };
+      // Convert Date objects to ISO strings for database storage and filter out undefined values
+      const dbUpdates: Record<string, any> = {};
+      
+      Object.entries(updates).forEach(([key, value]) => {
+        if (value !== undefined) {
+          if (key === 'assigned_at' || key === 'completed_at') {
+            dbUpdates[key] = value instanceof Date ? value.toISOString() : value;
+          } else {
+            dbUpdates[key] = value;
+          }
+        }
+      });
       
       const { data, error } = await supabase
         .from('operations')
