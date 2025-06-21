@@ -9,18 +9,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-const AdminMigration = () => {
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [progress, setProgress] = useState<string>('');
+const AdminMigration: React.FC = () => {
+  const [isLoading, setIsLoading] = useState(false);
+  const [progress, setProgress] = useState('');
   const [error, setError] = useState<string | null>(null);
   
-  const [email, setEmail] = useState<string>('');
-  const [username, setUsername] = useState<string>('');
-  const [password, setPassword] = useState<string>('');
-  const [role, setRole] = useState<string>('technician');
-  const [name, setName] = useState<string>('');
+  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [role, setRole] = useState('technician');
+  const [name, setName] = useState('');
 
-  const migrateAdmin = async (): Promise<void> => {
+  const migrateAdmin = async () => {
     setIsLoading(true);
     setError(null);
     setProgress('Iniciando migração do administrador...');
@@ -94,7 +94,7 @@ const AdminMigration = () => {
     }
   };
 
-  const createNewUser = async (): Promise<void> => {
+  const createNewUser = async () => {
     setIsLoading(true);
     setError(null);
     setProgress('Criando novo usuário...');
@@ -167,8 +167,24 @@ const AdminMigration = () => {
     }
   };
 
-  const handleRoleChange = (value: string): void => {
+  const handleRoleChange = (value: string) => {
     setRole(value);
+  };
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEmail(e.target.value);
+  };
+
+  const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setUsername(e.target.value);
+  };
+
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setName(e.target.value);
+  };
+
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPassword(e.target.value);
   };
 
   return (
@@ -213,7 +229,7 @@ const AdminMigration = () => {
                   id="email"
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={handleEmailChange}
                   placeholder="email@exemplo.com"
                 />
               </div>
@@ -223,7 +239,7 @@ const AdminMigration = () => {
                 <Input
                   id="username"
                   value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  onChange={handleUsernameChange}
                   placeholder="nomeusuario"
                 />
               </div>
@@ -233,7 +249,7 @@ const AdminMigration = () => {
                 <Input
                   id="name"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={handleNameChange}
                   placeholder="Nome Completo"
                 />
               </div>
@@ -244,7 +260,7 @@ const AdminMigration = () => {
                   id="password"
                   type="password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={handlePasswordChange}
                   placeholder="********"
                 />
               </div>
