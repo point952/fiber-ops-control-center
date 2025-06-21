@@ -9,17 +9,27 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-const AdminMigration: React.FC = () => {
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [progress, setProgress] = useState<string>('');
-  const [error, setError] = useState<string | null>(null);
-  const [email, setEmail] = useState<string>('');
-  const [username, setUsername] = useState<string>('');
-  const [password, setPassword] = useState<string>('');
-  const [role, setRole] = useState<string>('technician');
-  const [name, setName] = useState<string>('');
+interface UserFormData {
+  email: string;
+  username: string;
+  password: string;
+  role: string;
+  name: string;
+}
 
-  const migrateAdmin = async (): Promise<void> => {
+const AdminMigration = () => {
+  const [isLoading, setIsLoading] = useState(false);
+  const [progress, setProgress] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [formData, setFormData] = useState<UserFormData>({
+    email: '',
+    username: '',
+    password: '',
+    role: 'technician',
+    name: ''
+  });
+
+  const migrateAdmin = async () => {
     setIsLoading(true);
     setError(null);
     setProgress('Iniciando migração do administrador...');
@@ -91,7 +101,7 @@ const AdminMigration: React.FC = () => {
     }
   };
 
-  const createNewUser = async (): Promise<void> => {
+  const createNewUser = async () => {
     setIsLoading(true);
     setError(null);
     setProgress('Criando novo usuário...');
@@ -100,7 +110,7 @@ const AdminMigration: React.FC = () => {
       const existingUserResult = await supabase
         .from('profiles')
         .select('id')
-        .or(`email.eq.${email},username.eq.${username}`)
+        .or(`email.eq.${formData.email},username.eq.${formData.username}`)
         .maybeSingle();
 
       if (existingUserResult.data) {
@@ -108,13 +118,13 @@ const AdminMigration: React.FC = () => {
       }
 
       const authResult = await supabase.auth.signUp({
-        email: email,
-        password: password,
+        email: formData.email,
+        password: formData.password,
         options: {
           data: {
-            username: username,
-            role: role,
-            name: name
+            username: formData.username,
+            role: formData.role,
+            name: formData.name
           }
         }
       });
@@ -132,10 +142,10 @@ const AdminMigration: React.FC = () => {
         .insert([
           {
             id: authResult.data.user.id,
-            username: username,
-            role: role,
-            name: name,
-            email: email
+            username: formData.username,
+            role: formData.role,
+            name: formData.name,
+            email: formData.email
           }
         ]);
 
@@ -145,11 +155,13 @@ const AdminMigration: React.FC = () => {
 
       toast.success('Usuário criado com sucesso!');
       
-      setEmail('');
-      setUsername('');
-      setPassword('');
-      setRole('technician');
-      setName('');
+      setFormData({
+        email: '',
+        username: '',
+        password: '',
+        role: 'technician',
+        name: ''
+      });
       setIsLoading(false);
     } catch (err) {
       console.error('Erro ao criar usuário:', err);
@@ -160,24 +172,11 @@ const AdminMigration: React.FC = () => {
     }
   };
 
-  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setEmail(e.target.value);
-  };
-
-  const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setUsername(e.target.value);
-  };
-
-  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setName(e.target.value);
-  };
-
-  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setPassword(e.target.value);
-  };
-
-  const handleRoleChange = (value: string) => {
-    setRole(value);
+  const updateFormField = (field: keyof UserFormData, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
   };
 
   return (
@@ -221,8 +220,8 @@ const AdminMigration: React.FC = () => {
                 <Input
                   id="email"
                   type="email"
-                  value={email}
-                  onChange={handleEmailChange}
+                  value={formData.email}
+                  onChange={(e) => updateFormField('email', e.target.value)}
                   placeholder="email@exemplo.com"
                 />
               </div>
@@ -231,8 +230,8 @@ const AdminMigration: React.FC = () => {
                 <Label htmlFor="username">Nome de Usuário</Label>
                 <Input
                   id="username"
-                  value={username}
-                  onChange={handleUsernameChange}
+                  value={formData.username}
+                  onChange={(e) => updateFormField('username', e.target.value)}
                   placeholder="nomeusuario"
                 />
               </div>
@@ -241,8 +240,8 @@ const AdminMigration: React.FC = () => {
                 <Label htmlFor="name">Nome Completo</Label>
                 <Input
                   id="name"
-                  value={name}
-                  onChange={handleNameChange}
+                  value={formData.name}
+                  onChange={(e) => updateFormField('name', e.target.value)}
                   placeholder="Nome Completo"
                 />
               </div>
@@ -252,8 +251,8 @@ const AdminMigration: React.FC = () => {
                 <Input
                   id="password"
                   type="password"
-                  value={password}
-                  onChange={handlePasswordChange}
+                  value={formData.password}
+                  onChange={(e) => updateFormField('password', e.target.value)}
                   placeholder="********"
                 />
               </div>
@@ -261,8 +260,8 @@ const AdminMigration: React.FC = () => {
               <div>
                 <Label htmlFor="role">Papel</Label>
                 <Select
-                  value={role}
-                  onValueChange={handleRoleChange}
+                  value={formData.role}
+                  onValueChange={(value) => updateFormField('role', value)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione o papel" />
