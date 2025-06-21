@@ -39,7 +39,7 @@ const AdminMigration: React.FC = () => {
     setRole(value);
   };
 
-  const migrateAdmin = async () => {
+  async function migrateAdmin() {
     setIsLoading(true);
     setError(null);
     setProgress('Iniciando migração do administrador...');
@@ -109,9 +109,9 @@ const AdminMigration: React.FC = () => {
       setIsLoading(false);
       toast.error('Erro durante a migração do administrador');
     }
-  };
+  }
 
-  const createNewUser = async () => {
+  async function createNewUser() {
     setIsLoading(true);
     setError(null);
     setProgress('Criando novo usuário...');
@@ -178,7 +178,7 @@ const AdminMigration: React.FC = () => {
       setIsLoading(false);
       toast.error('Erro ao criar usuário');
     }
-  };
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-100 to-gray-200">
