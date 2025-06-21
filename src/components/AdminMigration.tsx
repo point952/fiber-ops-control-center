@@ -163,6 +163,10 @@ const AdminMigration: React.FC = () => {
     }
   };
 
+  const handleRoleChange = (value: string) => {
+    setRole(value as UserRole);
+  };
+
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
       <Card className="w-full max-w-md">
@@ -245,7 +249,7 @@ const AdminMigration: React.FC = () => {
                 <Label htmlFor="role">Papel</Label>
                 <Select
                   value={role}
-                  onValueChange={(value: UserRole) => setRole(value)}
+                  onValueChange={handleRoleChange}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione o papel" />
