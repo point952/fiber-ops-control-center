@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
@@ -163,8 +162,8 @@ const AdminMigration: React.FC = () => {
     }
   };
 
-  const handleRoleChange = (value: string) => {
-    setRole(value as UserRole);
+  const handleRoleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setRole(e.target.value as UserRole);
   };
 
   return (
@@ -247,19 +246,16 @@ const AdminMigration: React.FC = () => {
 
               <div>
                 <Label htmlFor="role">Papel</Label>
-                <Select
+                <select
+                  id="role"
                   value={role}
-                  onValueChange={handleRoleChange}
+                  onChange={handleRoleChange}
+                  className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o papel" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="admin">Administrador</SelectItem>
-                    <SelectItem value="operator">Operador</SelectItem>
-                    <SelectItem value="technician">Técnico</SelectItem>
-                  </SelectContent>
-                </Select>
+                  <option value="admin">Administrador</option>
+                  <option value="operator">Operador</option>
+                  <option value="technician">Técnico</option>
+                </select>
               </div>
 
               <Button 
