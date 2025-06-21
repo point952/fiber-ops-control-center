@@ -11,28 +11,17 @@ import { Label } from '@/components/ui/label';
 
 type UserRole = 'admin' | 'operator' | 'technician';
 
-// Simplified interface to avoid deep type instantiation
-interface NewUserFormData {
-  email: string;
-  username: string;
-  password: string;
-  role: UserRole;
-  name: string;
-}
-
 const AdminMigration = () => {
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [progress, setProgress] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [progress, setProgress] = useState('');
   const [error, setError] = useState<string | null>(null);
   
-  // Initialize with explicit type annotation to avoid inference issues
-  const [newUser, setNewUser] = useState<NewUserFormData>({
-    email: '',
-    username: '',
-    password: '',
-    role: 'technician' as UserRole,
-    name: ''
-  });
+  // Simple state variables instead of complex object
+  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [role, setRole] = useState<UserRole>('technician');
+  const [name, setName] = useState('');
 
   const migrateAdmin = async () => {
     setIsLoading(true);
@@ -117,7 +106,7 @@ const AdminMigration = () => {
       const { data: existingUser } = await supabase
         .from('profiles')
         .select('id')
-        .or(`email.eq.${newUser.email},username.eq.${newUser.username}`)
+        .or(`email.eq.${email},username.eq.${username}`)
         .maybeSingle();
 
       if (existingUser) {
@@ -126,13 +115,13 @@ const AdminMigration = () => {
 
       // Criar usuário no Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: newUser.email,
-        password: newUser.password,
+        email: email,
+        password: password,
         options: {
           data: {
-            username: newUser.username,
-            role: newUser.role,
-            name: newUser.name
+            username: username,
+            role: role,
+            name: name
           }
         }
       });
@@ -151,10 +140,10 @@ const AdminMigration = () => {
         .insert([
           {
             id: authData.user.id,
-            username: newUser.username,
-            role: newUser.role,
-            name: newUser.name,
-            email: newUser.email
+            username: username,
+            role: role,
+            name: name,
+            email: email
           }
         ]);
 
@@ -163,13 +152,13 @@ const AdminMigration = () => {
       }
 
       toast.success('Usuário criado com sucesso!');
-      setNewUser({
-        email: '',
-        username: '',
-        password: '',
-        role: 'technician' as UserRole,
-        name: ''
-      });
+      
+      // Reset form
+      setEmail('');
+      setUsername('');
+      setPassword('');
+      setRole('technician');
+      setName('');
     } catch (error) {
       console.error('Erro ao criar usuário:', error);
       setError(error instanceof Error ? error.message : 'Erro desconhecido');
@@ -177,26 +166,6 @@ const AdminMigration = () => {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const updateEmail = (value: string) => {
-    setNewUser(prev => ({ ...prev, email: value }));
-  };
-
-  const updateUsername = (value: string) => {
-    setNewUser(prev => ({ ...prev, username: value }));
-  };
-
-  const updateName = (value: string) => {
-    setNewUser(prev => ({ ...prev, name: value }));
-  };
-
-  const updatePassword = (value: string) => {
-    setNewUser(prev => ({ ...prev, password: value }));
-  };
-
-  const updateRole = (value: string) => {
-    setNewUser(prev => ({ ...prev, role: value as UserRole }));
   };
 
   return (
@@ -240,8 +209,8 @@ const AdminMigration = () => {
                 <Input
                   id="email"
                   type="email"
-                  value={newUser.email}
-                  onChange={(e) => updateEmail(e.target.value)}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   placeholder="email@exemplo.com"
                 />
               </div>
@@ -250,8 +219,8 @@ const AdminMigration = () => {
                 <Label htmlFor="username">Nome de Usuário</Label>
                 <Input
                   id="username"
-                  value={newUser.username}
-                  onChange={(e) => updateUsername(e.target.value)}
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
                   placeholder="nomeusuario"
                 />
               </div>
@@ -260,8 +229,8 @@ const AdminMigration = () => {
                 <Label htmlFor="name">Nome Completo</Label>
                 <Input
                   id="name"
-                  value={newUser.name}
-                  onChange={(e) => updateName(e.target.value)}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
                   placeholder="Nome Completo"
                 />
               </div>
@@ -271,8 +240,8 @@ const AdminMigration = () => {
                 <Input
                   id="password"
                   type="password"
-                  value={newUser.password}
-                  onChange={(e) => updatePassword(e.target.value)}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   placeholder="********"
                 />
               </div>
@@ -280,8 +249,8 @@ const AdminMigration = () => {
               <div>
                 <Label htmlFor="role">Papel</Label>
                 <Select
-                  value={newUser.role}
-                  onValueChange={updateRole}
+                  value={role}
+                  onValueChange={(value: UserRole) => setRole(value)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione o papel" />
