@@ -22,7 +22,7 @@ const AdminMigration: React.FC = () => {
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<UserRole>('technician');
+  const [role, setRole] = useState('technician');
   const [name, setName] = useState('');
 
   const handleLogout = () => {
@@ -36,7 +36,7 @@ const AdminMigration: React.FC = () => {
   };
 
   const handleRoleChange = (value: string) => {
-    setRole(value as UserRole);
+    setRole(value);
   };
 
   const migrateAdmin = async () => {
