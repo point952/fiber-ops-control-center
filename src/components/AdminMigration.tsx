@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -8,15 +9,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
+interface NewUser {
+  email: string;
+  username: string;
+  password: string;
+  role: 'admin' | 'operator' | 'technician';
+  name: string;
+}
+
 const AdminMigration = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [newUser, setNewUser] = useState({
+  const [newUser, setNewUser] = useState<NewUser>({
     email: '',
     username: '',
     password: '',
-    role: 'technician' as 'admin' | 'operator' | 'technician',
+    role: 'technician',
     name: ''
   });
 
@@ -165,6 +174,10 @@ const AdminMigration = () => {
     }
   };
 
+  const handleRoleChange = (value: string) => {
+    setNewUser({ ...newUser, role: value as 'admin' | 'operator' | 'technician' });
+  };
+
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
       <Card className="w-full max-w-md">
@@ -247,9 +260,7 @@ const AdminMigration = () => {
                 <Label htmlFor="role">Papel</Label>
                 <Select
                   value={newUser.role}
-                  onValueChange={(value: 'admin' | 'operator' | 'technician') => 
-                    setNewUser({ ...newUser, role: value })
-                  }
+                  onValueChange={handleRoleChange}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione o papel" />

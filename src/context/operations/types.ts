@@ -11,10 +11,10 @@ export interface Operation {
   feedback?: string;
   technician_response?: string;
   assigned_operator?: string;
-  assigned_at?: string;
+  assigned_at?: Date;
   completed_by?: string;
-  completed_at?: string;
-  created_at: string;
+  completed_at?: Date;
+  created_at: Date;
   operator_id?: string;
 }
 
@@ -23,8 +23,8 @@ export interface HistoryRecord {
   operation_id: string;
   type: 'installation' | 'cto' | 'rma';
   data: Record<string, any>;
-  created_at: string;
-  completed_at: string;
+  created_at: Date;
+  completed_at: Date;
   technician: string;
   technician_id?: string;
   operator?: string;
