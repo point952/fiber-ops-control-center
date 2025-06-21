@@ -10,14 +10,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 const AdminMigration: React.FC = () => {
-  const [isLoading, setIsLoading] = useState(false);
-  const [progress, setProgress] = useState('');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [progress, setProgress] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
-  const [email, setEmail] = useState('');
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [role, setRole] = useState('technician');
-  const [name, setName] = useState('');
+  const [email, setEmail] = useState<string>('');
+  const [username, setUsername] = useState<string>('');
+  const [password, setPassword] = useState<string>('');
+  const [role, setRole] = useState<string>('technician');
+  const [name, setName] = useState<string>('');
 
   const migrateAdmin = async (): Promise<void> => {
     setIsLoading(true);
@@ -160,6 +160,26 @@ const AdminMigration: React.FC = () => {
     }
   };
 
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEmail(e.target.value);
+  };
+
+  const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setUsername(e.target.value);
+  };
+
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setName(e.target.value);
+  };
+
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPassword(e.target.value);
+  };
+
+  const handleRoleChange = (value: string) => {
+    setRole(value);
+  };
+
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
       <Card className="w-full max-w-md">
@@ -202,7 +222,7 @@ const AdminMigration: React.FC = () => {
                   id="email"
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={handleEmailChange}
                   placeholder="email@exemplo.com"
                 />
               </div>
@@ -212,7 +232,7 @@ const AdminMigration: React.FC = () => {
                 <Input
                   id="username"
                   value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  onChange={handleUsernameChange}
                   placeholder="nomeusuario"
                 />
               </div>
@@ -222,7 +242,7 @@ const AdminMigration: React.FC = () => {
                 <Input
                   id="name"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={handleNameChange}
                   placeholder="Nome Completo"
                 />
               </div>
@@ -233,7 +253,7 @@ const AdminMigration: React.FC = () => {
                   id="password"
                   type="password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={handlePasswordChange}
                   placeholder="********"
                 />
               </div>
@@ -242,7 +262,7 @@ const AdminMigration: React.FC = () => {
                 <Label htmlFor="role">Papel</Label>
                 <Select
                   value={role}
-                  onValueChange={(value) => setRole(value)}
+                  onValueChange={handleRoleChange}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione o papel" />
