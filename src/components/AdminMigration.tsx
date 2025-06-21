@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -177,15 +176,11 @@ const AdminMigration = () => {
   };
 
   const updateField = (field: keyof NewUserForm, value: string) => {
-    setNewUser(current => {
-      const updated = { ...current };
-      if (field === 'role') {
-        updated[field] = value as UserRole;
-      } else {
-        updated[field] = value;
-      }
-      return updated;
-    });
+    if (field === 'role') {
+      setNewUser(prev => ({ ...prev, [field]: value as UserRole }));
+    } else {
+      setNewUser(prev => ({ ...prev, [field]: value }));
+    }
   };
 
   return (
