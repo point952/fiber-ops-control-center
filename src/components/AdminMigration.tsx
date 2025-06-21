@@ -11,19 +11,18 @@ import { Label } from '@/components/ui/label';
 
 type UserRole = 'admin' | 'operator' | 'technician';
 
-const AdminMigration = () => {
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [progress, setProgress] = useState<string>('');
+const AdminMigration: React.FC = () => {
+  const [isLoading, setIsLoading] = useState(false);
+  const [progress, setProgress] = useState('');
   const [error, setError] = useState<string | null>(null);
   
-  // Individual state for each form field to avoid complex type inference
-  const [email, setEmail] = useState<string>('');
-  const [username, setUsername] = useState<string>('');
-  const [password, setPassword] = useState<string>('');
+  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [role, setRole] = useState<UserRole>('technician');
-  const [name, setName] = useState<string>('');
+  const [name, setName] = useState('');
 
-  const migrateAdmin = async (): Promise<void> => {
+  const migrateAdmin = async () => {
     setIsLoading(true);
     setError(null);
     setProgress('Iniciando migração do administrador...');
@@ -95,7 +94,7 @@ const AdminMigration = () => {
     }
   };
 
-  const createNewUser = async (): Promise<void> => {
+  const createNewUser = async () => {
     setIsLoading(true);
     setError(null);
     setProgress('Criando novo usuário...');
@@ -149,7 +148,6 @@ const AdminMigration = () => {
 
       toast.success('Usuário criado com sucesso!');
       
-      // Reset form
       setEmail('');
       setUsername('');
       setPassword('');
@@ -163,26 +161,6 @@ const AdminMigration = () => {
       setIsLoading(false);
       toast.error('Erro ao criar usuário');
     }
-  };
-
-  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
-    setEmail(e.target.value);
-  };
-
-  const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
-    setUsername(e.target.value);
-  };
-
-  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
-    setName(e.target.value);
-  };
-
-  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
-    setPassword(e.target.value);
-  };
-
-  const handleRoleChange = (value: string): void => {
-    setRole(value as UserRole);
   };
 
   return (
@@ -227,7 +205,7 @@ const AdminMigration = () => {
                   id="email"
                   type="email"
                   value={email}
-                  onChange={handleEmailChange}
+                  onChange={(e) => setEmail(e.target.value)}
                   placeholder="email@exemplo.com"
                 />
               </div>
@@ -237,7 +215,7 @@ const AdminMigration = () => {
                 <Input
                   id="username"
                   value={username}
-                  onChange={handleUsernameChange}
+                  onChange={(e) => setUsername(e.target.value)}
                   placeholder="nomeusuario"
                 />
               </div>
@@ -247,7 +225,7 @@ const AdminMigration = () => {
                 <Input
                   id="name"
                   value={name}
-                  onChange={handleNameChange}
+                  onChange={(e) => setName(e.target.value)}
                   placeholder="Nome Completo"
                 />
               </div>
@@ -258,7 +236,7 @@ const AdminMigration = () => {
                   id="password"
                   type="password"
                   value={password}
-                  onChange={handlePasswordChange}
+                  onChange={(e) => setPassword(e.target.value)}
                   placeholder="********"
                 />
               </div>
@@ -267,7 +245,7 @@ const AdminMigration = () => {
                 <Label htmlFor="role">Papel</Label>
                 <Select
                   value={role}
-                  onValueChange={handleRoleChange}
+                  onValueChange={(value: UserRole) => setRole(value)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione o papel" />
