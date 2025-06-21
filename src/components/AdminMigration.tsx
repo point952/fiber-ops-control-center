@@ -9,35 +9,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-interface AdminMigrationState {
-  isLoading: boolean;
-  progress: string;
-  error: string | null;
-  email: string;
-  username: string;
-  password: string;
-  role: string;
-  name: string;
-}
-
 const AdminMigration: React.FC = () => {
-  const [state, setState] = useState<AdminMigrationState>({
-    isLoading: false,
-    progress: '',
-    error: null,
-    email: '',
-    username: '',
-    password: '',
-    role: 'technician',
-    name: ''
-  });
+  const [isLoading, setIsLoading] = useState(false);
+  const [progress, setProgress] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [role, setRole] = useState('technician');
+  const [name, setName] = useState('');
 
-  const updateState = (updates: Partial<AdminMigrationState>) => {
-    setState(prev => ({ ...prev, ...updates }));
-  };
-
-  const migrateAdmin = async () => {
-    updateState({ isLoading: true, error: null, progress: 'Iniciando migração do administrador...' });
+  const migrateAdmin = async (): Promise<void> => {
+    setIsLoading(true);
+    setError(null);
+    setProgress('Iniciando migração do administrador...');
 
     try {
       const existingAdminResult = await supabase
@@ -47,11 +32,12 @@ const AdminMigration: React.FC = () => {
         .maybeSingle();
 
       if (existingAdminResult.data) {
-        updateState({ error: 'O usuário administrador já existe no sistema.', isLoading: false });
+        setError('O usuário administrador já existe no sistema.');
+        setIsLoading(false);
         return;
       }
 
-      updateState({ progress: 'Criando usuário admin no Auth...' });
+      setProgress('Criando usuário admin no Auth...');
 
       const authResult = await supabase.auth.signUp({
         email: 'admin@fiberops.com',
@@ -74,7 +60,7 @@ const AdminMigration: React.FC = () => {
         throw new Error('Não foi possível criar o usuário');
       }
 
-      updateState({ progress: 'Usuário admin criado no Auth...' });
+      setProgress('Usuário admin criado no Auth...');
 
       const profileResult = await supabase
         .from('profiles')
@@ -93,24 +79,28 @@ const AdminMigration: React.FC = () => {
         throw new Error(`Erro ao criar perfil: ${profileResult.error.message}`);
       }
 
-      updateState({ progress: 'Perfil do admin criado com sucesso!', isLoading: false });
+      setProgress('Perfil do admin criado com sucesso!');
+      setIsLoading(false);
       toast.success('Usuário administrador migrado com sucesso!');
     } catch (err) {
       console.error('Erro durante a migração do admin:', err);
       const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido durante a migração';
-      updateState({ error: errorMessage, isLoading: false });
+      setError(errorMessage);
+      setIsLoading(false);
       toast.error('Erro durante a migração do administrador');
     }
   };
 
-  const createNewUser = async () => {
-    updateState({ isLoading: true, error: null, progress: 'Criando novo usuário...' });
+  const createNewUser = async (): Promise<void> => {
+    setIsLoading(true);
+    setError(null);
+    setProgress('Criando novo usuário...');
 
     try {
       const existingUserResult = await supabase
         .from('profiles')
         .select('id')
-        .or(`email.eq.${state.email},username.eq.${state.username}`)
+        .or(`email.eq.${email},username.eq.${username}`)
         .maybeSingle();
 
       if (existingUserResult.data) {
@@ -118,13 +108,13 @@ const AdminMigration: React.FC = () => {
       }
 
       const authResult = await supabase.auth.signUp({
-        email: state.email,
-        password: state.password,
+        email: email,
+        password: password,
         options: {
           data: {
-            username: state.username,
-            role: state.role,
-            name: state.name
+            username: username,
+            role: role,
+            name: name
           }
         }
       });
@@ -142,10 +132,10 @@ const AdminMigration: React.FC = () => {
         .insert([
           {
             id: authResult.data.user.id,
-            username: state.username,
-            role: state.role,
-            name: state.name,
-            email: state.email
+            username: username,
+            role: role,
+            name: name,
+            email: email
           }
         ]);
 
@@ -155,18 +145,17 @@ const AdminMigration: React.FC = () => {
 
       toast.success('Usuário criado com sucesso!');
       
-      updateState({
-        email: '',
-        username: '',
-        password: '',
-        role: 'technician',
-        name: '',
-        isLoading: false
-      });
+      setEmail('');
+      setUsername('');
+      setPassword('');
+      setRole('technician');
+      setName('');
+      setIsLoading(false);
     } catch (err) {
       console.error('Erro ao criar usuário:', err);
       const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
-      updateState({ error: errorMessage, isLoading: false });
+      setError(errorMessage);
+      setIsLoading(false);
       toast.error('Erro ao criar usuário');
     }
   };
@@ -183,24 +172,24 @@ const AdminMigration: React.FC = () => {
             Certifique-se de que o Supabase está configurado corretamente antes de prosseguir.
           </p>
           
-          {state.error && (
+          {error && (
             <Alert variant="destructive">
-              <AlertDescription>{state.error}</AlertDescription>
+              <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
           
-          {state.progress && (
+          {progress && (
             <div className="p-4 bg-gray-100 rounded-md">
-              <p className="text-sm">{state.progress}</p>
+              <p className="text-sm">{progress}</p>
             </div>
           )}
 
           <Button 
             onClick={migrateAdmin} 
-            disabled={state.isLoading}
+            disabled={isLoading}
             className="w-full"
           >
-            {state.isLoading ? 'Migrando...' : 'Criar Administrador'}
+            {isLoading ? 'Migrando...' : 'Criar Administrador'}
           </Button>
 
           <div className="border-t pt-4 mt-4">
@@ -212,8 +201,8 @@ const AdminMigration: React.FC = () => {
                 <Input
                   id="email"
                   type="email"
-                  value={state.email}
-                  onChange={(e) => updateState({ email: e.target.value })}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   placeholder="email@exemplo.com"
                 />
               </div>
@@ -222,8 +211,8 @@ const AdminMigration: React.FC = () => {
                 <Label htmlFor="username">Nome de Usuário</Label>
                 <Input
                   id="username"
-                  value={state.username}
-                  onChange={(e) => updateState({ username: e.target.value })}
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
                   placeholder="nomeusuario"
                 />
               </div>
@@ -232,8 +221,8 @@ const AdminMigration: React.FC = () => {
                 <Label htmlFor="name">Nome Completo</Label>
                 <Input
                   id="name"
-                  value={state.name}
-                  onChange={(e) => updateState({ name: e.target.value })}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
                   placeholder="Nome Completo"
                 />
               </div>
@@ -243,8 +232,8 @@ const AdminMigration: React.FC = () => {
                 <Input
                   id="password"
                   type="password"
-                  value={state.password}
-                  onChange={(e) => updateState({ password: e.target.value })}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   placeholder="********"
                 />
               </div>
@@ -252,8 +241,8 @@ const AdminMigration: React.FC = () => {
               <div>
                 <Label htmlFor="role">Papel</Label>
                 <Select
-                  value={state.role}
-                  onValueChange={(value) => updateState({ role: value })}
+                  value={role}
+                  onValueChange={(value) => setRole(value)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione o papel" />
@@ -268,10 +257,10 @@ const AdminMigration: React.FC = () => {
 
               <Button 
                 onClick={createNewUser} 
-                disabled={state.isLoading}
+                disabled={isLoading}
                 className="w-full"
               >
-                {state.isLoading ? 'Criando...' : 'Criar Usuário'}
+                {isLoading ? 'Criando...' : 'Criar Usuário'}
               </Button>
             </div>
           </div>
