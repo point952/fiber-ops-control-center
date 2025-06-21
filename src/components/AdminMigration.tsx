@@ -9,18 +9,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-type UserRole = 'admin' | 'operator' | 'technician';
-
 const AdminMigration = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState('');
   const [error, setError] = useState<string | null>(null);
   
-  // Simple state variables instead of complex object
+  // Individual state variables to avoid type recursion
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<UserRole>('technician');
+  const [role, setRole] = useState('technician');
   const [name, setName] = useState('');
 
   const migrateAdmin = async () => {
@@ -168,6 +166,10 @@ const AdminMigration = () => {
     }
   };
 
+  const handleRoleChange = (value: string) => {
+    setRole(value);
+  };
+
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
       <Card className="w-full max-w-md">
@@ -250,7 +252,7 @@ const AdminMigration = () => {
                 <Label htmlFor="role">Papel</Label>
                 <Select
                   value={role}
-                  onValueChange={(value: UserRole) => setRole(value)}
+                  onValueChange={handleRoleChange}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione o papel" />
