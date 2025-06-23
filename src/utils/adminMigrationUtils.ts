@@ -1,4 +1,5 @@
 
+
 import { supabase } from '@/integrations/supabase/client';
 
 interface DatabaseResult {
@@ -8,12 +9,12 @@ interface DatabaseResult {
 
 export async function checkAdminExists(): Promise<DatabaseResult> {
   try {
-    const { data, error } = await supabase
+    const result = await supabase
       .from('profiles')
       .select('id')
       .eq('username', 'admin');
     
-    return { data, error };
+    return { data: result.data, error: result.error };
   } catch (error) {
     return { data: null, error };
   }
@@ -21,12 +22,12 @@ export async function checkAdminExists(): Promise<DatabaseResult> {
 
 export async function checkUserExists(email: string, username: string): Promise<DatabaseResult> {
   try {
-    const { data, error } = await supabase
+    const result = await supabase
       .from('profiles')
       .select('id')
       .or(`email.eq.${email},username.eq.${username}`);
     
-    return { data, error };
+    return { data: result.data, error: result.error };
   } catch (error) {
     return { data: null, error };
   }
@@ -34,12 +35,12 @@ export async function checkUserExists(email: string, username: string): Promise<
 
 export async function createAuthUser(email: string, password: string): Promise<DatabaseResult> {
   try {
-    const { data, error } = await supabase.auth.signUp({
+    const result = await supabase.auth.signUp({
       email,
       password
     });
     
-    return { data, error };
+    return { data: result.data, error: result.error };
   } catch (error) {
     return { data: null, error };
   }
@@ -47,7 +48,7 @@ export async function createAuthUser(email: string, password: string): Promise<D
 
 export async function createUserProfile(userId: string, username: string, role: string, name: string, email: string): Promise<DatabaseResult> {
   try {
-    const { data, error } = await supabase
+    const result = await supabase
       .from('profiles')
       .insert({
         id: userId,
@@ -57,8 +58,9 @@ export async function createUserProfile(userId: string, username: string, role: 
         email
       });
     
-    return { data, error };
+    return { data: result.data, error: result.error };
   } catch (error) {
     return { data: null, error };
   }
 }
+
