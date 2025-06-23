@@ -8,15 +8,12 @@ interface DatabaseResult {
 
 export async function checkAdminExists(): Promise<DatabaseResult> {
   try {
-    const response = await supabase
+    const { data, error } = await supabase
       .from('profiles')
       .select('id')
-      .eq('username', 'admin') as any;
+      .eq('username', 'admin');
     
-    return { 
-      data: response.data, 
-      error: response.error 
-    };
+    return { data, error };
   } catch (error) {
     return { data: null, error };
   }
@@ -24,15 +21,12 @@ export async function checkAdminExists(): Promise<DatabaseResult> {
 
 export async function checkUserExists(email: string, username: string): Promise<DatabaseResult> {
   try {
-    const response = await supabase
+    const { data, error } = await supabase
       .from('profiles')
       .select('id')
-      .or(`email.eq.${email},username.eq.${username}`) as any;
+      .or(`email.eq.${email},username.eq.${username}`);
     
-    return { 
-      data: response.data, 
-      error: response.error 
-    };
+    return { data, error };
   } catch (error) {
     return { data: null, error };
   }
@@ -40,15 +34,12 @@ export async function checkUserExists(email: string, username: string): Promise<
 
 export async function createAuthUser(email: string, password: string): Promise<DatabaseResult> {
   try {
-    const response = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password
-    }) as any;
+    });
     
-    return { 
-      data: response.data, 
-      error: response.error 
-    };
+    return { data, error };
   } catch (error) {
     return { data: null, error };
   }
@@ -56,7 +47,7 @@ export async function createAuthUser(email: string, password: string): Promise<D
 
 export async function createUserProfile(userId: string, username: string, role: string, name: string, email: string): Promise<DatabaseResult> {
   try {
-    const response = await supabase
+    const { data, error } = await supabase
       .from('profiles')
       .insert({
         id: userId,
@@ -64,12 +55,9 @@ export async function createUserProfile(userId: string, username: string, role: 
         role,
         name,
         email
-      }) as any;
+      });
     
-    return { 
-      data: response.data, 
-      error: response.error 
-    };
+    return { data, error };
   } catch (error) {
     return { data: null, error };
   }
