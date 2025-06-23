@@ -44,11 +44,11 @@ const AdminMigration: React.FC = () => {
     setProgress('Iniciando migração do administrador...');
 
     try {
-      // Use explicit type assertion to avoid complex type inference
-      const adminCheck = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('username', 'admin') as any;
+      // Break down the query to avoid complex type inference
+      const profilesTable = supabase.from('profiles');
+      const selectQuery = profilesTable.select('id');
+      const adminQuery = selectQuery.eq('username', 'admin');
+      const adminCheck: any = await adminQuery;
 
       if (adminCheck.data && adminCheck.data.length > 0) {
         setError('O usuário administrador já existe no sistema.');
@@ -58,11 +58,13 @@ const AdminMigration: React.FC = () => {
 
       setProgress('Criando usuário admin no Auth...');
 
-      // Use explicit type assertion for auth result
-      const authResult = await supabase.auth.signUp({
+      // Break down the auth signup to avoid type inference issues
+      const authClient = supabase.auth;
+      const signupData = {
         email: 'admin@fiberops.com',
         password: '#point#123'
-      }) as any;
+      };
+      const authResult: any = await authClient.signUp(signupData);
 
       if (authResult.error) {
         console.error('Erro ao criar usuário auth:', authResult.error);
@@ -110,21 +112,24 @@ const AdminMigration: React.FC = () => {
     setProgress('Criando novo usuário...');
 
     try {
-      // Use explicit type assertion to avoid complex type inference
-      const userCheck = await supabase
-        .from('profiles')
-        .select('id')
-        .or(`email.eq.${email},username.eq.${username}`) as any;
+      // Break down the query to avoid complex type inference
+      const profilesTable = supabase.from('profiles');
+      const selectQuery = profilesTable.select('id');
+      const orCondition = `email.eq.${email},username.eq.${username}`;
+      const userQuery = selectQuery.or(orCondition);
+      const userCheck: any = await userQuery;
 
       if (userCheck.data && userCheck.data.length > 0) {
         throw new Error('Já existe um usuário com este email ou nome de usuário');
       }
 
-      // Use explicit type assertion for auth result
-      const authResult = await supabase.auth.signUp({
+      // Break down the auth signup to avoid type inference issues
+      const authClient = supabase.auth;
+      const signupData = {
         email: email,
         password: password
-      }) as any;
+      };
+      const authResult: any = await authClient.signUp(signupData);
 
       if (authResult.error) {
         throw new Error(`Erro ao criar usuário: ${authResult.error.message}`);
