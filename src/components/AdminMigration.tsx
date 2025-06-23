@@ -1,6 +1,4 @@
-
 import React, { useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
@@ -10,6 +8,12 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { LogOut, ArrowLeft } from 'lucide-react';
+import { 
+  checkAdminExists, 
+  checkUserExists, 
+  createAuthUser, 
+  createUserProfile 
+} from '@/utils/adminMigrationUtils';
 
 const AdminMigration: React.FC = () => {
   const { user, logout } = useAuth();
@@ -44,11 +48,7 @@ const AdminMigration: React.FC = () => {
     setProgress('Iniciando migração do administrador...');
 
     try {
-      // Break down the query to avoid complex type inference
-      const profilesTable = supabase.from('profiles');
-      const selectQuery = profilesTable.select('id');
-      const adminQuery = selectQuery.eq('username', 'admin');
-      const adminCheck: any = await adminQuery;
+      const adminCheck = await checkAdminExists();
 
       if (adminCheck.data && adminCheck.data.length > 0) {
         setError('O usuário administrador já existe no sistema.');
@@ -58,13 +58,7 @@ const AdminMigration: React.FC = () => {
 
       setProgress('Criando usuário admin no Auth...');
 
-      // Break down the auth signup to avoid type inference issues
-      const authClient = supabase.auth;
-      const signupData = {
-        email: 'admin@fiberops.com',
-        password: '#point#123'
-      };
-      const authResult: any = await authClient.signUp(signupData);
+      const authResult = await createAuthUser('admin@fiberops.com', '#point#123');
 
       if (authResult.error) {
         console.error('Erro ao criar usuário auth:', authResult.error);
@@ -79,15 +73,13 @@ const AdminMigration: React.FC = () => {
       const newUserId = userData.id;
       setProgress('Usuário admin criado no Auth...');
 
-      const profileResponse = await supabase
-        .from('profiles')
-        .insert({
-          id: newUserId,
-          username: 'admin',
-          role: 'admin',
-          name: 'Administrador',
-          email: 'admin@fiberops.com'
-        });
+      const profileResponse = await createUserProfile(
+        newUserId,
+        'admin',
+        'admin',
+        'Administrador',
+        'admin@fiberops.com'
+      );
 
       if (profileResponse.error) {
         console.error('Erro ao criar perfil:', profileResponse.error);
@@ -112,24 +104,13 @@ const AdminMigration: React.FC = () => {
     setProgress('Criando novo usuário...');
 
     try {
-      // Break down the query to avoid complex type inference
-      const profilesTable = supabase.from('profiles');
-      const selectQuery = profilesTable.select('id');
-      const orCondition = `email.eq.${email},username.eq.${username}`;
-      const userQuery = selectQuery.or(orCondition);
-      const userCheck: any = await userQuery;
+      const userCheck = await checkUserExists(email, username);
 
       if (userCheck.data && userCheck.data.length > 0) {
         throw new Error('Já existe um usuário com este email ou nome de usuário');
       }
 
-      // Break down the auth signup to avoid type inference issues
-      const authClient = supabase.auth;
-      const signupData = {
-        email: email,
-        password: password
-      };
-      const authResult: any = await authClient.signUp(signupData);
+      const authResult = await createAuthUser(email, password);
 
       if (authResult.error) {
         throw new Error(`Erro ao criar usuário: ${authResult.error.message}`);
@@ -142,15 +123,13 @@ const AdminMigration: React.FC = () => {
 
       const newUserId = userData.id;
 
-      const profileResponse = await supabase
-        .from('profiles')
-        .insert({
-          id: newUserId,
-          username: username,
-          role: role,
-          name: name,
-          email: email
-        });
+      const profileResponse = await createUserProfile(
+        newUserId,
+        username,
+        role,
+        name,
+        email
+      );
 
       if (profileResponse.error) {
         throw new Error(`Erro ao criar perfil: ${profileResponse.error.message}`);
