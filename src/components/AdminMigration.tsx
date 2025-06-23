@@ -10,7 +10,6 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { LogOut, ArrowLeft } from 'lucide-react';
-import type { AuthResponse } from '@supabase/supabase-js';
 
 const AdminMigration: React.FC = () => {
   const { user, logout } = useAuth();
@@ -59,25 +58,22 @@ const AdminMigration: React.FC = () => {
 
       setProgress('Criando usuário admin no Auth...');
 
-      // Use explicit typing to avoid type recursion
-      const authResponse: AuthResponse = await supabase.auth.signUp({
+      // Simplified auth call without explicit typing
+      const { data, error: authError } = await supabase.auth.signUp({
         email: 'admin@fiberops.com',
         password: '#point#123'
       });
 
-      if (authResponse.error) {
-        console.error('Erro ao criar usuário auth:', authResponse.error);
-        throw new Error(`Erro ao criar usuário: ${authResponse.error.message}`);
+      if (authError) {
+        console.error('Erro ao criar usuário auth:', authError);
+        throw new Error(`Erro ao criar usuário: ${authError.message}`);
       }
 
-      const userData = authResponse.data;
-      const userInfo = userData?.user;
-      
-      if (!userData || !userInfo?.id) {
+      if (!data?.user?.id) {
         throw new Error('Não foi possível criar o usuário');
       }
 
-      const newUserId = userInfo.id;
+      const newUserId = data.user.id;
       setProgress('Usuário admin criado no Auth...');
 
       const profileResponse = await supabase
@@ -123,24 +119,21 @@ const AdminMigration: React.FC = () => {
         throw new Error('Já existe um usuário com este email ou nome de usuário');
       }
 
-      // Use explicit typing to avoid type recursion
-      const authResponse: AuthResponse = await supabase.auth.signUp({
+      // Simplified auth call without explicit typing
+      const { data, error: authError } = await supabase.auth.signUp({
         email: email,
         password: password
       });
 
-      if (authResponse.error) {
-        throw new Error(`Erro ao criar usuário: ${authResponse.error.message}`);
+      if (authError) {
+        throw new Error(`Erro ao criar usuário: ${authError.message}`);
       }
 
-      const userData = authResponse.data;
-      const userInfo = userData?.user;
-      
-      if (!userData || !userInfo?.id) {
+      if (!data?.user?.id) {
         throw new Error('Não foi possível criar o usuário');
       }
 
-      const newUserId = userInfo.id;
+      const newUserId = data.user.id;
 
       const profileResponse = await supabase
         .from('profiles')
