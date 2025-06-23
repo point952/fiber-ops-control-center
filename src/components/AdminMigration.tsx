@@ -44,13 +44,13 @@ const AdminMigration: React.FC = () => {
     setProgress('Iniciando migração do administrador...');
 
     try {
-      const existingAdminResult = await supabase
+      // Simplified query to avoid complex type inference
+      const adminCheck = await supabase
         .from('profiles')
         .select('id')
-        .eq('username', 'admin')
-        .maybeSingle();
+        .eq('username', 'admin');
 
-      if (existingAdminResult.data) {
+      if (adminCheck.data && adminCheck.data.length > 0) {
         setError('O usuário administrador já existe no sistema.');
         setIsLoading(false);
         return;
@@ -58,22 +58,23 @@ const AdminMigration: React.FC = () => {
 
       setProgress('Criando usuário admin no Auth...');
 
-      // Use simpler approach to avoid type inference issues
-      const signUpResult = await supabase.auth.signUp({
+      // Simplified signup call
+      const authResult = await supabase.auth.signUp({
         email: 'admin@fiberops.com',
         password: '#point#123'
       });
 
-      if (signUpResult.error) {
-        console.error('Erro ao criar usuário auth:', signUpResult.error);
-        throw new Error(`Erro ao criar usuário: ${signUpResult.error.message}`);
+      if (authResult.error) {
+        console.error('Erro ao criar usuário auth:', authResult.error);
+        throw new Error(`Erro ao criar usuário: ${authResult.error.message}`);
       }
 
-      if (!signUpResult.data?.user?.id) {
+      const userData = authResult.data.user;
+      if (!userData || !userData.id) {
         throw new Error('Não foi possível criar o usuário');
       }
 
-      const newUserId = signUpResult.data.user.id;
+      const newUserId = userData.id;
       setProgress('Usuário admin criado no Auth...');
 
       const profileResponse = await supabase
@@ -109,31 +110,32 @@ const AdminMigration: React.FC = () => {
     setProgress('Criando novo usuário...');
 
     try {
-      const existingUserResult = await supabase
+      // Simplified query to avoid complex type inference
+      const userCheck = await supabase
         .from('profiles')
         .select('id')
-        .or(`email.eq.${email},username.eq.${username}`)
-        .maybeSingle();
+        .or(`email.eq.${email},username.eq.${username}`);
 
-      if (existingUserResult.data) {
+      if (userCheck.data && userCheck.data.length > 0) {
         throw new Error('Já existe um usuário com este email ou nome de usuário');
       }
 
-      // Use simpler approach to avoid type inference issues
-      const signUpResult = await supabase.auth.signUp({
+      // Simplified signup call
+      const authResult = await supabase.auth.signUp({
         email: email,
         password: password
       });
 
-      if (signUpResult.error) {
-        throw new Error(`Erro ao criar usuário: ${signUpResult.error.message}`);
+      if (authResult.error) {
+        throw new Error(`Erro ao criar usuário: ${authResult.error.message}`);
       }
 
-      if (!signUpResult.data?.user?.id) {
+      const userData = authResult.data.user;
+      if (!userData || !userData.id) {
         throw new Error('Não foi possível criar o usuário');
       }
 
-      const newUserId = signUpResult.data.user.id;
+      const newUserId = userData.id;
 
       const profileResponse = await supabase
         .from('profiles')
