@@ -72,6 +72,7 @@ const Login = () => {
       if (!success) {
         setError('Credenciais inválidas');
       }
+      // Não precisa redirecionar aqui, o useEffect vai cuidar disso
     } catch (err) {
       console.error('Login error:', err);
       setError('Ocorreu um erro ao tentar fazer login');
@@ -80,20 +81,18 @@ const Login = () => {
     }
   }, [email, password, login, isLoading, authLoading]);
 
-  const LoadingCard = () => (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-gray-100 to-gray-200 p-4">
-      <Card className="w-full max-w-md">
-        <CardContent className="p-6 text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p>Verificando autenticação...</p>
-        </CardContent>
-      </Card>
-    </div>
-  );
-
   // Show loading while checking authentication
   if (authLoading) {
-    return <LoadingCard />;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-gray-100 to-gray-200 p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="p-6 text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p>Verificando autenticação...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   // Don't render the login form if user is authenticated

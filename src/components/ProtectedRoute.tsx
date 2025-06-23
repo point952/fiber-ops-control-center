@@ -14,17 +14,19 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole 
 
   console.log('ProtectedRoute - Path:', location.pathname, 'isAuthenticated:', isAuthenticated, 'user:', user, 'isLoading:', isLoading, 'requiredRole:', requiredRole);
 
+  // Mostrar loading enquanto verifica autenticação
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-gray-100 to-gray-200">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p>Carregando...</p>
+          <p className="text-gray-600">Carregando...</p>
         </div>
       </div>
     );
   }
 
+  // Redirecionar para login se não autenticado
   if (!isAuthenticated || !user) {
     console.log('User not authenticated, redirecting to login');
     return <Navigate to="/login" replace state={{ from: location }} />;
@@ -38,10 +40,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole 
 
   const userRole = user.role;
 
+  // Verificar se o usuário tem a role necessária
   if (userRole !== requiredRole) {
     console.log('User role mismatch. Required:', requiredRole, 'User role:', userRole);
     
-    // Evitar redirecionamento em loop - só redireciona se não estiver já na página correta
+    // Redirecionar para a página apropriada baseada na role do usuário
     const getRedirectPath = () => {
       switch (userRole) {
         case 'admin':
