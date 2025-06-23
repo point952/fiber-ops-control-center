@@ -1,5 +1,4 @@
 
-
 import { supabase } from '@/integrations/supabase/client';
 
 interface DatabaseResult {
@@ -14,7 +13,10 @@ export async function checkAdminExists(): Promise<DatabaseResult> {
       .select('id')
       .eq('username', 'admin');
     
-    return { data: result.data, error: result.error };
+    return { 
+      data: result.data || null, 
+      error: result.error || null 
+    };
   } catch (error) {
     return { data: null, error };
   }
@@ -27,7 +29,10 @@ export async function checkUserExists(email: string, username: string): Promise<
       .select('id')
       .or(`email.eq.${email},username.eq.${username}`);
     
-    return { data: result.data, error: result.error };
+    return { 
+      data: result.data || null, 
+      error: result.error || null 
+    };
   } catch (error) {
     return { data: null, error };
   }
@@ -40,7 +45,10 @@ export async function createAuthUser(email: string, password: string): Promise<D
       password
     });
     
-    return { data: result.data, error: result.error };
+    return { 
+      data: result.data || null, 
+      error: result.error || null 
+    };
   } catch (error) {
     return { data: null, error };
   }
@@ -58,9 +66,11 @@ export async function createUserProfile(userId: string, username: string, role: 
         email
       });
     
-    return { data: result.data, error: result.error };
+    return { 
+      data: result.data || null, 
+      error: result.error || null 
+    };
   } catch (error) {
     return { data: null, error };
   }
 }
-
