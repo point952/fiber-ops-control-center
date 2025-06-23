@@ -58,22 +58,22 @@ const AdminMigration: React.FC = () => {
 
       setProgress('Criando usuário admin no Auth...');
 
-      // Simplified auth call without explicit typing
-      const { data, error: authError } = await supabase.auth.signUp({
+      // Use simpler approach to avoid type inference issues
+      const signUpResult = await supabase.auth.signUp({
         email: 'admin@fiberops.com',
         password: '#point#123'
       });
 
-      if (authError) {
-        console.error('Erro ao criar usuário auth:', authError);
-        throw new Error(`Erro ao criar usuário: ${authError.message}`);
+      if (signUpResult.error) {
+        console.error('Erro ao criar usuário auth:', signUpResult.error);
+        throw new Error(`Erro ao criar usuário: ${signUpResult.error.message}`);
       }
 
-      if (!data?.user?.id) {
+      if (!signUpResult.data?.user?.id) {
         throw new Error('Não foi possível criar o usuário');
       }
 
-      const newUserId = data.user.id;
+      const newUserId = signUpResult.data.user.id;
       setProgress('Usuário admin criado no Auth...');
 
       const profileResponse = await supabase
@@ -119,21 +119,21 @@ const AdminMigration: React.FC = () => {
         throw new Error('Já existe um usuário com este email ou nome de usuário');
       }
 
-      // Simplified auth call without explicit typing
-      const { data, error: authError } = await supabase.auth.signUp({
+      // Use simpler approach to avoid type inference issues
+      const signUpResult = await supabase.auth.signUp({
         email: email,
         password: password
       });
 
-      if (authError) {
-        throw new Error(`Erro ao criar usuário: ${authError.message}`);
+      if (signUpResult.error) {
+        throw new Error(`Erro ao criar usuário: ${signUpResult.error.message}`);
       }
 
-      if (!data?.user?.id) {
+      if (!signUpResult.data?.user?.id) {
         throw new Error('Não foi possível criar o usuário');
       }
 
-      const newUserId = data.user.id;
+      const newUserId = signUpResult.data.user.id;
 
       const profileResponse = await supabase
         .from('profiles')
