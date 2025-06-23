@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -57,37 +58,37 @@ const AdminMigration: React.FC = () => {
 
       setProgress('Criando usuário admin no Auth...');
 
-      // Use direct values instead of object to avoid type recursion
-      const authResult = await supabase.auth.signUp({
-        email: 'admin@fiberops.com',
-        password: '#point#123'
+      // Create auth user without destructuring to avoid type recursion
+      const authResponse = await supabase.auth.signUp({
+        email: 'admin@fiberops.com' as string,
+        password: '#point#123' as string
       });
 
-      if (authResult.error) {
-        console.error('Erro ao criar usuário auth:', authResult.error);
-        throw new Error(`Erro ao criar usuário: ${authResult.error.message}`);
+      if (authResponse.error) {
+        console.error('Erro ao criar usuário auth:', authResponse.error);
+        throw new Error(`Erro ao criar usuário: ${authResponse.error.message}`);
       }
 
-      const userId = authResult.data?.user?.id;
-      if (!userId) {
+      if (!authResponse.data || !authResponse.data.user || !authResponse.data.user.id) {
         throw new Error('Não foi possível criar o usuário');
       }
 
+      const newUserId = authResponse.data.user.id;
       setProgress('Usuário admin criado no Auth...');
 
-      const profileResult = await supabase
+      const profileResponse = await supabase
         .from('profiles')
         .insert({
-          id: userId,
-          username: 'admin',
-          role: 'admin',
-          name: 'Administrador',
-          email: 'admin@fiberops.com'
+          id: newUserId,
+          username: 'admin' as string,
+          role: 'admin' as string,
+          name: 'Administrador' as string,
+          email: 'admin@fiberops.com' as string
         });
 
-      if (profileResult.error) {
-        console.error('Erro ao criar perfil:', profileResult.error);
-        throw new Error(`Erro ao criar perfil: ${profileResult.error.message}`);
+      if (profileResponse.error) {
+        console.error('Erro ao criar perfil:', profileResponse.error);
+        throw new Error(`Erro ao criar perfil: ${profileResponse.error.message}`);
       }
 
       setProgress('Perfil do admin criado com sucesso!');
@@ -118,33 +119,34 @@ const AdminMigration: React.FC = () => {
         throw new Error('Já existe um usuário com este email ou nome de usuário');
       }
 
-      // Use direct values to avoid type recursion
-      const authResult = await supabase.auth.signUp({
-        email,
-        password
+      // Create auth user without destructuring to avoid type recursion
+      const authResponse = await supabase.auth.signUp({
+        email: email as string,
+        password: password as string
       });
 
-      if (authResult.error) {
-        throw new Error(`Erro ao criar usuário: ${authResult.error.message}`);
+      if (authResponse.error) {
+        throw new Error(`Erro ao criar usuário: ${authResponse.error.message}`);
       }
 
-      const userId = authResult.data?.user?.id;
-      if (!userId) {
+      if (!authResponse.data || !authResponse.data.user || !authResponse.data.user.id) {
         throw new Error('Não foi possível criar o usuário');
       }
 
-      const profileResult = await supabase
+      const newUserId = authResponse.data.user.id;
+
+      const profileResponse = await supabase
         .from('profiles')
         .insert({
-          id: userId,
-          username,
-          role,
-          name,
-          email
+          id: newUserId,
+          username: username as string,
+          role: role as string,
+          name: name as string,
+          email: email as string
         });
 
-      if (profileResult.error) {
-        throw new Error(`Erro ao criar perfil: ${profileResult.error.message}`);
+      if (profileResponse.error) {
+        throw new Error(`Erro ao criar perfil: ${profileResponse.error.message}`);
       }
 
       toast.success('Usuário criado com sucesso!');
