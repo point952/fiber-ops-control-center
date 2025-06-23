@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { LogOut, ArrowLeft } from 'lucide-react';
+import type { AuthResponse } from '@supabase/supabase-js';
 
 const AdminMigration: React.FC = () => {
   const { user, logout } = useAuth();
@@ -58,10 +59,10 @@ const AdminMigration: React.FC = () => {
 
       setProgress('Criando usuário admin no Auth...');
 
-      // Create auth user without destructuring to avoid type recursion
-      const authResponse = await supabase.auth.signUp({
-        email: 'admin@fiberops.com' as string,
-        password: '#point#123' as string
+      // Use explicit typing to avoid type recursion
+      const authResponse: AuthResponse = await supabase.auth.signUp({
+        email: 'admin@fiberops.com',
+        password: '#point#123'
       });
 
       if (authResponse.error) {
@@ -69,21 +70,24 @@ const AdminMigration: React.FC = () => {
         throw new Error(`Erro ao criar usuário: ${authResponse.error.message}`);
       }
 
-      if (!authResponse.data || !authResponse.data.user || !authResponse.data.user.id) {
+      const userData = authResponse.data;
+      const userInfo = userData?.user;
+      
+      if (!userData || !userInfo?.id) {
         throw new Error('Não foi possível criar o usuário');
       }
 
-      const newUserId = authResponse.data.user.id;
+      const newUserId = userInfo.id;
       setProgress('Usuário admin criado no Auth...');
 
       const profileResponse = await supabase
         .from('profiles')
         .insert({
           id: newUserId,
-          username: 'admin' as string,
-          role: 'admin' as string,
-          name: 'Administrador' as string,
-          email: 'admin@fiberops.com' as string
+          username: 'admin',
+          role: 'admin',
+          name: 'Administrador',
+          email: 'admin@fiberops.com'
         });
 
       if (profileResponse.error) {
@@ -119,30 +123,33 @@ const AdminMigration: React.FC = () => {
         throw new Error('Já existe um usuário com este email ou nome de usuário');
       }
 
-      // Create auth user without destructuring to avoid type recursion
-      const authResponse = await supabase.auth.signUp({
-        email: email as string,
-        password: password as string
+      // Use explicit typing to avoid type recursion
+      const authResponse: AuthResponse = await supabase.auth.signUp({
+        email: email,
+        password: password
       });
 
       if (authResponse.error) {
         throw new Error(`Erro ao criar usuário: ${authResponse.error.message}`);
       }
 
-      if (!authResponse.data || !authResponse.data.user || !authResponse.data.user.id) {
+      const userData = authResponse.data;
+      const userInfo = userData?.user;
+      
+      if (!userData || !userInfo?.id) {
         throw new Error('Não foi possível criar o usuário');
       }
 
-      const newUserId = authResponse.data.user.id;
+      const newUserId = userInfo.id;
 
       const profileResponse = await supabase
         .from('profiles')
         .insert({
           id: newUserId,
-          username: username as string,
-          role: role as string,
-          name: name as string,
-          email: email as string
+          username: username,
+          role: role,
+          name: name,
+          email: email
         });
 
       if (profileResponse.error) {
