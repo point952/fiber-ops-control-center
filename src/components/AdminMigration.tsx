@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -58,36 +57,37 @@ const AdminMigration: React.FC = () => {
 
       setProgress('Criando usuário admin no Auth...');
 
-      // Create admin user with simple object structure
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      // Use direct values instead of object to avoid type recursion
+      const authResult = await supabase.auth.signUp({
         email: 'admin@fiberops.com',
         password: '#point#123'
       });
 
-      if (authError) {
-        console.error('Erro ao criar usuário auth:', authError);
-        throw new Error(`Erro ao criar usuário: ${authError.message}`);
+      if (authResult.error) {
+        console.error('Erro ao criar usuário auth:', authResult.error);
+        throw new Error(`Erro ao criar usuário: ${authResult.error.message}`);
       }
 
-      if (!authData?.user?.id) {
+      const userId = authResult.data?.user?.id;
+      if (!userId) {
         throw new Error('Não foi possível criar o usuário');
       }
 
       setProgress('Usuário admin criado no Auth...');
 
-      const { error: profileError } = await supabase
+      const profileResult = await supabase
         .from('profiles')
         .insert({
-          id: authData.user.id,
+          id: userId,
           username: 'admin',
           role: 'admin',
           name: 'Administrador',
           email: 'admin@fiberops.com'
         });
 
-      if (profileError) {
-        console.error('Erro ao criar perfil:', profileError);
-        throw new Error(`Erro ao criar perfil: ${profileError.message}`);
+      if (profileResult.error) {
+        console.error('Erro ao criar perfil:', profileResult.error);
+        throw new Error(`Erro ao criar perfil: ${profileResult.error.message}`);
       }
 
       setProgress('Perfil do admin criado com sucesso!');
@@ -118,32 +118,33 @@ const AdminMigration: React.FC = () => {
         throw new Error('Já existe um usuário com este email ou nome de usuário');
       }
 
-      // Create user with simple object structure
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: email,
-        password: password
+      // Use direct values to avoid type recursion
+      const authResult = await supabase.auth.signUp({
+        email,
+        password
       });
 
-      if (authError) {
-        throw new Error(`Erro ao criar usuário: ${authError.message}`);
+      if (authResult.error) {
+        throw new Error(`Erro ao criar usuário: ${authResult.error.message}`);
       }
 
-      if (!authData?.user?.id) {
+      const userId = authResult.data?.user?.id;
+      if (!userId) {
         throw new Error('Não foi possível criar o usuário');
       }
 
-      const { error: profileError } = await supabase
+      const profileResult = await supabase
         .from('profiles')
         .insert({
-          id: authData.user.id,
-          username: username,
-          role: role,
-          name: name,
-          email: email
+          id: userId,
+          username,
+          role,
+          name,
+          email
         });
 
-      if (profileError) {
-        throw new Error(`Erro ao criar perfil: ${profileError.message}`);
+      if (profileResult.error) {
+        throw new Error(`Erro ao criar perfil: ${profileResult.error.message}`);
       }
 
       toast.success('Usuário criado com sucesso!');
