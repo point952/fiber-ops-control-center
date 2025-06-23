@@ -8,7 +8,7 @@ interface DatabaseResult {
 
 export async function checkAdminExists(): Promise<DatabaseResult> {
   try {
-    const response: any = await supabase
+    const response = await (supabase as any)
       .from('profiles')
       .select('id')
       .eq('username', 'admin');
@@ -21,7 +21,7 @@ export async function checkAdminExists(): Promise<DatabaseResult> {
 
 export async function checkUserExists(email: string, username: string): Promise<DatabaseResult> {
   try {
-    const response: any = await supabase
+    const response = await (supabase as any)
       .from('profiles')
       .select('id')
       .or(`email.eq.${email},username.eq.${username}`);
@@ -34,7 +34,7 @@ export async function checkUserExists(email: string, username: string): Promise<
 
 export async function createAuthUser(email: string, password: string): Promise<DatabaseResult> {
   try {
-    const response: any = await supabase.auth.signUp({
+    const response = await (supabase.auth as any).signUp({
       email,
       password
     });
@@ -47,7 +47,7 @@ export async function createAuthUser(email: string, password: string): Promise<D
 
 export async function createUserProfile(userId: string, username: string, role: string, name: string, email: string): Promise<DatabaseResult> {
   try {
-    const response: any = await supabase
+    const response = await (supabase as any)
       .from('profiles')
       .insert({
         id: userId,
