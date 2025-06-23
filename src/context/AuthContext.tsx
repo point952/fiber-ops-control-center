@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
@@ -59,13 +58,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('Fetching profile for user:', userId);
       
-      const profileQuery = supabase
+      const { data: profile, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .maybeSingle();
-
-      const { data: profile, error } = await profileQuery;
 
       if (error) {
         console.error('Error fetching profile:', error);
@@ -73,8 +70,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const sessionData = await supabase.auth.getSession();
           if (sessionData.data.session?.user) {
             await createDefaultProfile(sessionData.data.session.user);
+            return;
           }
         }
+        setIsLoading(false);
         return;
       }
 
@@ -88,6 +87,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           email: profile.email,
           username: profile.name || profile.email
         });
+      } else {
+        // Se não encontrou perfil, cria um default
+        const sessionData = await supabase.auth.getSession();
+        if (sessionData.data.session?.user) {
+          await createDefaultProfile(sessionData.data.session.user);
+        }
       }
     } catch (error) {
       console.error('Error in fetchUserProfile:', error);
@@ -98,6 +103,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const createDefaultProfile = async (authUser: User) => {
     try {
+      console.log('Creating default profile for user:', authUser.id);
       const profileData = {
         id: authUser.id,
         name: authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'Usuário',
@@ -113,7 +119,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error('Error creating default profile:', error);
       } else {
         console.log('Default profile created successfully');
-        await fetchUserProfile(authUser.id);
+        setUser({
+          id: profileData.id,
+          name: profileData.name,
+          role: 'technician',
+          email: profileData.email,
+          username: profileData.name
+        });
       }
     } catch (error) {
       console.error('Error in createDefaultProfile:', error);
