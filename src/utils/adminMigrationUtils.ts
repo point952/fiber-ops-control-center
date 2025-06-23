@@ -8,14 +8,14 @@ interface DatabaseResult {
 
 export async function checkAdminExists(): Promise<DatabaseResult> {
   try {
-    const { data, error } = await supabase
+    const response = await supabase
       .from('profiles')
       .select('id')
       .eq('username', 'admin');
     
     return { 
-      data: data as any, 
-      error: error as any 
+      data: response.data, 
+      error: response.error 
     };
   } catch (error) {
     return { data: null, error };
@@ -24,14 +24,14 @@ export async function checkAdminExists(): Promise<DatabaseResult> {
 
 export async function checkUserExists(email: string, username: string): Promise<DatabaseResult> {
   try {
-    const { data, error } = await supabase
+    const response = await supabase
       .from('profiles')
       .select('id')
       .or(`email.eq.${email},username.eq.${username}`);
     
     return { 
-      data: data as any, 
-      error: error as any 
+      data: response.data, 
+      error: response.error 
     };
   } catch (error) {
     return { data: null, error };
@@ -40,14 +40,14 @@ export async function checkUserExists(email: string, username: string): Promise<
 
 export async function createAuthUser(email: string, password: string): Promise<DatabaseResult> {
   try {
-    const { data, error } = await supabase.auth.signUp({
+    const response = await supabase.auth.signUp({
       email,
       password
     });
     
     return { 
-      data: data as any, 
-      error: error as any 
+      data: response.data, 
+      error: response.error 
     };
   } catch (error) {
     return { data: null, error };
@@ -56,7 +56,7 @@ export async function createAuthUser(email: string, password: string): Promise<D
 
 export async function createUserProfile(userId: string, username: string, role: string, name: string, email: string): Promise<DatabaseResult> {
   try {
-    const { data, error } = await supabase
+    const response = await supabase
       .from('profiles')
       .insert({
         id: userId,
@@ -67,8 +67,8 @@ export async function createUserProfile(userId: string, username: string, role: 
       });
     
     return { 
-      data: data as any, 
-      error: error as any 
+      data: response.data, 
+      error: response.error 
     };
   } catch (error) {
     return { data: null, error };
