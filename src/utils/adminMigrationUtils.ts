@@ -11,7 +11,7 @@ export async function checkAdminExists(): Promise<DatabaseResult> {
     const response = await supabase
       .from('profiles')
       .select('id')
-      .eq('username', 'admin');
+      .eq('username', 'admin') as any;
     
     return { 
       data: response.data, 
@@ -27,7 +27,7 @@ export async function checkUserExists(email: string, username: string): Promise<
     const response = await supabase
       .from('profiles')
       .select('id')
-      .or(`email.eq.${email},username.eq.${username}`);
+      .or(`email.eq.${email},username.eq.${username}`) as any;
     
     return { 
       data: response.data, 
@@ -43,7 +43,7 @@ export async function createAuthUser(email: string, password: string): Promise<D
     const response = await supabase.auth.signUp({
       email,
       password
-    });
+    }) as any;
     
     return { 
       data: response.data, 
@@ -64,7 +64,7 @@ export async function createUserProfile(userId: string, username: string, role: 
         role,
         name,
         email
-      });
+      }) as any;
     
     return { 
       data: response.data, 
