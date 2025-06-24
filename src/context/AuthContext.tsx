@@ -41,7 +41,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<UserProfile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isInitialized, setIsInitialized] = useState(false);
 
   const normalizeRole = useCallback((role: string): UserRole => {
     const roleMap: Record<string, UserRole> = {
@@ -55,39 +54,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return roleMap[role.toLowerCase()] || 'technician';
   }, []);
 
-  const createDefaultProfile = useCallback(async (authUser: User): Promise<UserProfile | null> => {
-    try {
-      console.log('Creating default profile for user:', authUser.id);
-      const profileData = {
-        id: authUser.id,
-        name: authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'Usuário',
-        role: 'technician' as const,
-        email: authUser.email
-      };
-
-      const { error } = await supabase
-        .from('profiles')
-        .insert(profileData);
-
-      if (error) {
-        console.error('Error creating default profile:', error);
-        return null;
-      }
-
-      console.log('Default profile created successfully');
-      return {
-        id: profileData.id,
-        name: profileData.name,
-        role: 'technician',
-        email: profileData.email,
-        username: profileData.name
-      };
-    } catch (error) {
-      console.error('Error in createDefaultProfile:', error);
-      return null;
-    }
-  }, []);
-
   const fetchUserProfile = useCallback(async (userId: string): Promise<UserProfile | null> => {
     try {
       console.log('Fetching profile for user:', userId);
@@ -96,10 +62,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .maybeSingle();
+        .single();
 
-      if (error && error.code !== 'PGRST116') {
+      if (error) {
         console.error('Error fetching profile:', error);
+        // Se não encontrar o perfil, cria um default
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (sessionData.session?.user) {
+          const defaultProfile = {
+            id: userId,
+            name: sessionData.session.user.email?.split('@')[0] || 'Usuário',
+            role: 'technician' as const,
+            email: sessionData.session.user.email
+          };
+
+          const { error: insertError } = await supabase
+            .from('profiles')
+            .insert(defaultProfile);
+
+          if (insertError) {
+            console.error('Error creating default profile:', insertError);
+            return null;
+          }
+
+          return {
+            id: defaultProfile.id,
+            name: defaultProfile.name,
+            role: 'technician',
+            email: defaultProfile.email,
+            username: defaultProfile.name
+          };
+        }
         return null;
       }
 
@@ -115,89 +108,76 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
       }
 
-      // Se não encontrou perfil, cria um default
-      console.log('No profile found, creating default profile');
-      const sessionData = await supabase.auth.getSession();
-      if (sessionData.data.session?.user) {
-        return await createDefaultProfile(sessionData.data.session.user);
-      }
-
       return null;
     } catch (error) {
       console.error('Error in fetchUserProfile:', error);
       return null;
     }
-  }, [normalizeRole, createDefaultProfile]);
-
-  const handleAuthStateChange = useCallback(async (event: string, session: Session | null) => {
-    console.log('Auth state changed:', event, session?.user?.id);
-    
-    setSession(session);
-    
-    if (session?.user && event !== 'SIGNED_OUT') {
-      // Buscar perfil do usuário
-      const userProfile = await fetchUserProfile(session.user.id);
-      setUser(userProfile);
-    } else {
-      setUser(null);
-    }
-    
-    if (!isInitialized) {
-      setIsInitialized(true);
-    }
-    setIsLoading(false);
-  }, [fetchUserProfile, isInitialized]);
+  }, [normalizeRole]);
 
   useEffect(() => {
     let mounted = true;
 
-    // Configurar listener de mudanças de auth
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthStateChange);
-
-    // Verificar sessão inicial
-    const initializeAuth = async () => {
+    const initAuth = async () => {
       try {
-        const { data: { session }, error } = await supabase.auth.getSession();
+        console.log('Initializing auth...');
+        
+        // Primeiro, obter a sessão atual
+        const { data: { session: currentSession }, error } = await supabase.auth.getSession();
         
         if (error) {
           console.error('Error getting session:', error);
           if (mounted) {
             setIsLoading(false);
-            setIsInitialized(true);
           }
           return;
         }
 
-        console.log('Initial session check:', session?.user?.id);
-        
-        if (session?.user && mounted) {
-          setSession(session);
-          const userProfile = await fetchUserProfile(session.user.id);
+        console.log('Current session:', currentSession?.user?.id || 'none');
+
+        if (currentSession?.user && mounted) {
+          setSession(currentSession);
+          const userProfile = await fetchUserProfile(currentSession.user.id);
           if (mounted) {
             setUser(userProfile);
           }
         }
-        
+
         if (mounted) {
-          setIsInitialized(true);
           setIsLoading(false);
         }
       } catch (error) {
         console.error('Error initializing auth:', error);
         if (mounted) {
-          setIsInitialized(true);
           setIsLoading(false);
         }
       }
     };
 
-    initializeAuth();
+    // Configurar listener DEPOIS da inicialização
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+      console.log('Auth state changed:', event, newSession?.user?.id || 'none');
+      
+      if (!mounted) return;
+
+      setSession(newSession);
+      
+      if (newSession?.user && event !== 'SIGNED_OUT') {
+        const userProfile = await fetchUserProfile(newSession.user.id);
+        setUser(userProfile);
+      } else {
+        setUser(null);
+      }
+    });
+
+    // Inicializar
+    initAuth();
 
     return () => {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [handleAuthStateChange, fetchUserProfile]);
+  }, [fetchUserProfile]);
 
   const getAllUsers = async (): Promise<UserProfile[]> => {
     try {
